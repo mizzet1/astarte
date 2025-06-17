@@ -19,14 +19,19 @@
 defmodule Astarte.Housekeeping.RPC.Handler do
   @behaviour Astarte.RPC.Handler
 
+  alias Astarte.DataAccess.Health.Health
   alias Astarte.Housekeeping.Engine
 
   alias Astarte.RPC.Protocol.Housekeeping.{
     Call,
     CreateRealm,
     DeleteRealm,
+    DoesRealmExist,
+    DoesRealmExistReply,
     GenericErrorReply,
     GenericOkReply,
+    GetHealth,
+    GetHealthReply,
     GetRealm,
     GetRealmReply,
     GetRealmsList,
@@ -255,6 +260,34 @@ defmodule Astarte.Housekeeping.RPC.Handler do
       {:error, reason} ->
         generic_error(reason)
     end
+  end
+
+  defp call_rpc({:does_realm_exist, %DoesRealmExist{realm: realm}}) do
+    case Astarte.Housekeeping.Engine.is_realm_existing(realm) do
+      {:ok, exists?} ->
+        %DoesRealmExistReply{exists: exists?}
+        |> encode_reply(:does_realm_exist_reply)
+        |> ok_wrap
+
+      {:error, reason} ->
+        generic_error(reason)
+    end
+  end
+
+  defp call_rpc({:get_health, %GetHealth{}}) do
+    {:ok, %{status: status}} = Health.get_health()
+
+    status_enum =
+      case status do
+        :ready -> :READY
+        :degraded -> :DEGRADED
+        :bad -> :BAD
+        :error -> :ERROR
+      end
+
+    %GetHealthReply{status: status_enum}
+    |> encode_reply(:get_health_reply)
+    |> ok_wrap
   end
 
   defp call_rpc({:get_realms_list, %GetRealmsList{}}) do

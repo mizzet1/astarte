@@ -1,0 +1,116 @@
+14:31:38.443 [info] opened file:///home/rick/Desktop/astarte-dev/astarte/apps/astarte_appengine_api/lib/astarte_appengine_api/device/attributes.ex
+14:31:38.453 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/document_symbols.ex:16: LXical.Server.Provider.Handlers.DocumentSymbols.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:31:38.453 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/code_action.ex:16: LXical.Server.Provider.Handlers.CodeAction.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:31:38.453 [warning] Task Elixir.LXical.Server.Provider.Handlers.DocumentSymbols.handle/2 ran for  0.76 ms. Result :success
+14:31:38.453 [warning] Task Elixir.LXical.Server.Provider.Handlers.CodeAction.handle/2 ran for  1 ms. Result :success
+14:31:38.755 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/document_symbols.ex:16: LXical.Server.Provider.Handlers.DocumentSymbols.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:31:38.755 [warning] Task Elixir.LXical.Server.Provider.Handlers.DocumentSymbols.handle/2 ran for  4 ms. Result :success
+14:31:38.899 [warning] Task Elixir.LXical.Server.Provider.Handlers.CodeLens.handle/2 ran for  0.177 ms. Result :success
+14:31:47.721 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/hover.ex:21: LXical.Server.Provider.Handlers.Hover.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:31:47.722 [warning] Task Elixir.LXical.Server.Provider.Handlers.Hover.handle/2 ran for  17 ms. Result :success
+14:31:48.328 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/hover.ex:21: LXical.Server.Provider.Handlers.Hover.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:31:48.328 [warning] Task Elixir.LXical.Server.Provider.Handlers.Hover.handle/2 ran for  4 ms. Result :success
+14:31:48.886 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/hover.ex:21: LXical.Server.Provider.Handlers.Hover.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:31:48.886 [warning] Task Elixir.LXical.Server.Provider.Handlers.Hover.handle/2 ran for  2 ms. Result :success
+14:32:14.582 [info] opened file:///home/rick/Desktop/astarte-dev/astarte/apps/astarte_appengine_api/lib/astarte_appengine_api/device/astarte_value.ex
+14:32:14.592 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/document_symbols.ex:16: LXical.Server.Provider.Handlers.DocumentSymbols.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:32:14.592 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/code_action.ex:16: LXical.Server.Provider.Handlers.CodeAction.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:32:14.593 [warning] Task Elixir.LXical.Server.Provider.Handlers.DocumentSymbols.handle/2 ran for  0.714 ms. Result :success
+14:32:14.593 [warning] Task Elixir.LXical.Server.Provider.Handlers.CodeAction.handle/2 ran for  1 ms. Result :success
+14:32:14.964 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/document_symbols.ex:16: LXical.Server.Provider.Handlers.DocumentSymbols.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:32:14.964 [warning] Task Elixir.LXical.Server.Provider.Handlers.DocumentSymbols.handle/2 ran for  0.886 ms. Result :success
+14:32:15.110 [warning] Task Elixir.LXical.Server.Provider.Handlers.CodeLens.handle/2 ran for  0.463 ms. Result :success
+14:32:16.173 [error] ** (ErlangError) Erlang error: {:erpc, :noconnection}
+    (kernel 8.5.4.2) erpc.erl:710: :erpc.call/5
+    (lx_server 0.7.2) lib/lexical/server/provider/handlers/hover.ex:21: LXical.Server.Provider.Handlers.Hover.handle/2
+    (lx_server 0.7.2) lib/lexical/server/task_queue.ex:79: anonymous fn/4 in LXical.Server.TaskQueue.State.as_task/2
+    (elixir 1.14.0) lib/task/supervised.ex:89: Task.Supervised.invoke_mfa/2
+    (elixir 1.14.0) lib/task/supervised.ex:34: Task.Supervised.reply/4
+    (stdlib 4.3.1.3) proc_lib.erl:240: :proc_lib.init_p_do_apply/3
+
+14:32:16.173 [warning] Task Elixir.LXical.Server.Provider.Handlers.Hover.handle/2 ran for  3 ms. Result :success
+14:32:50.553 [error] stdio received :eof, server will stop.
+14:32:50.553 [error] Child LXical.Server.Transport.StdIO of Supervisor LXical.Server.Supervisor terminated
+** (exit) normal
+Pid: #PID<0.151.0>
+Start Call: LXical.Server.Transport.StdIO.start_link(:standard_io, &LXical.Server.protocol_message/1)
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+14:32:50.553 [info] Child LXical.Server.Transport.StdIO of Supervisor LXical.Server.Supervisor started
+Pid: #PID<0.270.0>
+Start Call: LXical.Server.Transport.StdIO.start_link(:standard_io, &LXical.Server.protocol_message/1)
+Restart: :permanent
+Shutdown: 5000
+Type: :worker
+14:32:50.553 [error] stdio received :eof, server will stop.
+14:32:50.553 [error] Child LXical.Server.Transport.StdIO of Supervisor LXical.Server.Supervisor shut down abnormally
+** (exit) normal
+Pid: #PID<0.270.0>
+Start Call: LXical.Server.Transport.StdIO.start_link(:standard_io, &LXical.Server.protocol_message/1)
+Restart: :permanent
+Shutdown: 5000
+Type: :worker

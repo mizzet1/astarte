@@ -35,6 +35,9 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Trigger do
   alias Astarte.Core.Triggers.DataTrigger
   alias Astarte.DataUpdaterPlant.TriggerPolicy.Queries, as: PolicyQueries
   alias Astarte.Core.Triggers.SimpleTriggersProtobuf.DeviceTrigger, as: ProtobufDeviceTrigger
+  alias Astarte.Core.Device
+
+  require Logger
 
   def populate_triggers_for_object!(state, object_id, object_type) do
     %{realm: realm} = state
@@ -67,7 +70,11 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Trigger do
     end)
   end
 
-  def load_trigger(state, {:data_trigger, proto_buf_data_trigger}, trigger_target) do
+  defp load_trigger(state, {:data_trigger, proto_buf_data_trigger}, trigger_target) do
+    device_id_string = Device.encode_device_id(state.device_id)
+
+    Logger.info("Loading data trigger for device #{inspect(device_id_string)} ...")
+
     new_data_trigger =
       SimpleTriggersProtobuf.Utils.simple_trigger_to_data_trigger(proto_buf_data_trigger)
 
@@ -105,7 +112,10 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Trigger do
   end
 
   # TODO: implement on_empty_cache_received
-  def load_trigger(state, {:device_trigger, proto_buf_device_trigger}, trigger_target) do
+  defp load_trigger(state, {:device_trigger, proto_buf_device_trigger}, trigger_target) do
+    device_id_string = Device.encode_device_id(state.device_id)
+
+    Logger.info("Loading device trigger for device #{inspect(device_id_string)} ...")
     device_triggers = state.device_triggers
 
     # device event type is one of

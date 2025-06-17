@@ -31,6 +31,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
   alias Astarte.DataUpdaterPlant.DataUpdater.PayloadsDecoder
   alias Astarte.DataUpdaterPlant.MessageTracker
   alias Astarte.DataUpdaterPlant.RPC.VMQPlugin.ClientMock
+  alias Astarte.DataUpdaterPlant.DataUpdater.Impl
 
   setup_all %{realm_name: realm_name, device: device} do
     setup_data_updater(realm_name, device.encoded_id)
@@ -122,7 +123,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
-      expect(Core.Device, :resend_all_properties, fn _state ->
+      expect(Impl, :resend_all_properties, fn _state ->
         {:error, :sending_properties_to_interface_failed}
       end)
 

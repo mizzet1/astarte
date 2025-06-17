@@ -20,25 +20,30 @@ defmodule Astarte.RealmManagement.APIWeb.HealthPlug do
   @behaviour Plug
   import Plug.Conn
 
-  alias Astarte.DataAccess.Health.Health
+  alias Astarte.RealmManagement.API.Health
+  alias Astarte.RealmManagement.API.Health.BackendHealth
 
   def init(_opts) do
     nil
   end
 
   def call(%{request_path: "/health", method: "GET"} = conn, _opts) do
-    case Health.get_health() do
-      {:ok, %{status: status}} when status in [:ready, :degraded] ->
-        :telemetry.execute(
-          [:astarte, :realm_management, :service],
-          %{health: 1},
-          %{status: status}
-        )
+    try do
+      with {:ok, %BackendHealth{status: status}} <- Health.get_backend_health() do
+        case status do
+          # When degraded, some Cassandra nodes are available so it's still ok
+          val when val in [:ready, :degraded] ->
+            conn
+            |> send_resp(:ok, "")
+            |> halt()
 
-        conn
-        |> send_resp(:ok, "")
-        |> halt()
-
+          val when val in [:bad, :error] ->
+            conn
+            |> send_resp(:service_unavailable, "")
+            |> halt()
+        end
+      end
+    rescue
       _ ->
         :telemetry.execute(
           [:astarte, :realm_management, :service],
@@ -46,7 +51,7 @@ defmodule Astarte.RealmManagement.APIWeb.HealthPlug do
         )
 
         conn
-        |> send_resp(:service_unavailable, "")
+        |> send_resp(:internal_server_error, "")
         |> halt()
     end
   end

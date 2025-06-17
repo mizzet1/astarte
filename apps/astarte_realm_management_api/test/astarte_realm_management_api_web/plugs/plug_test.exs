@@ -18,13 +18,12 @@
 
 defmodule Astarte.RealmManagement.APIWeb.PlugTest do
   use Astarte.RealmManagement.APIWeb.ConnCase, async: true
-  use Mimic
 
-  alias Astarte.DataAccess.Health.Health
+  alias Astarte.RealmManagement.API.Helpers.RPCMock.DB
 
   describe "GET /health" do
     test "returns 200 OK when status is :ready", %{conn: conn} do
-      expect(Health, :get_health, fn -> {:ok, %{status: :ready}} end)
+      DB.set_health_status(:READY)
 
       conn = get(conn, "/health")
 
@@ -33,7 +32,7 @@ defmodule Astarte.RealmManagement.APIWeb.PlugTest do
     end
 
     test "returns 200 OK when status is :degraded", %{conn: conn} do
-      expect(Health, :get_health, fn -> {:ok, %{status: :degraded}} end)
+      DB.set_health_status(:DEGRADED)
 
       conn = get(conn, "/health")
 
@@ -42,7 +41,7 @@ defmodule Astarte.RealmManagement.APIWeb.PlugTest do
     end
 
     test "returns 503 when status is :bad", %{conn: conn} do
-      expect(Health, :get_health, fn -> {:ok, %{status: :bad}} end)
+      DB.set_health_status(:BAD)
 
       conn = get(conn, "/health")
 
@@ -51,7 +50,7 @@ defmodule Astarte.RealmManagement.APIWeb.PlugTest do
     end
 
     test "returns 503 when status is :error", %{conn: conn} do
-      expect(Health, :get_health, fn -> {:ok, %{status: :error}} end)
+      DB.set_health_status(:ERORR)
 
       conn = get(conn, "/health")
 
