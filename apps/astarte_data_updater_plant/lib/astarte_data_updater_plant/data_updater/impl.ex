@@ -18,9 +18,11 @@
 
 defmodule Astarte.DataUpdaterPlant.DataUpdater.Impl do
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
+  alias Astarte.Core.CQLUtils
   alias Astarte.DataUpdaterPlant.Config
   alias Astarte.Core.Device
   alias Astarte.Core.InterfaceDescriptor
+  alias Astarte.Core.Mapping
   alias Astarte.Core.Mapping.EndpointsAutomaton
   alias Astarte.DataUpdaterPlant.DataUpdater.State
   alias Astarte.Core.Triggers.DataTrigger
@@ -29,8 +31,10 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Impl do
   alias Astarte.DataAccess.Interface, as: InterfaceQueries
   alias Astarte.DataUpdaterPlant.DataUpdater.Cache
   alias Astarte.DataUpdaterPlant.DataUpdater.EventTypeUtils
+  alias Astarte.DataUpdaterPlant.DataUpdater.PayloadsDecoder
   alias Astarte.DataUpdaterPlant.DataUpdater.Queries
   alias Astarte.DataUpdaterPlant.MessageTracker
+  alias Astarte.DataUpdaterPlant.RPC.VMQPlugin
   alias Astarte.DataUpdaterPlant.TriggersHandler
   alias Astarte.DataUpdaterPlant.TimeBasedActions
   require Logger
@@ -71,11 +75,128 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Impl do
     stats_and_introspection =
       Queries.retrieve_device_stats_and_introspection!(new_state.realm, device_id)
 
+    updated_state = Map.merge(new_state, stats_and_introspection)
+
+    add_device_to_rpc_handler_state(encoded_device_id, updated_state.realm, updated_state.groups)
+
     # TODO this could be a bang!
     {:ok, ttl} = Queries.get_datastream_maximum_storage_retention(new_state.realm)
 
-    Map.merge(new_state, stats_and_introspection)
-    |> Map.put(:datastream_maximum_storage_retention, ttl)
+    Map.put(updated_state, :datastream_maximum_storage_retention, ttl)
+  end
+
+  def add_device_to_rpc_handler_state(device_id, realm, groups) do
+    device = %Astarte.DataUpdaterPlant.RPC.Device{
+      device_id: device_id,
+      realm: realm,
+      groups: groups
+    }
+
+    Astarte.DataUpdaterPlant.RPC.DataUpdater.add_device(device)
+    Logger.info("Device added to dup_rpc_handler state: #{inspect(device_id)}")
+  end
+
+  def remove_device_from_rpc_handler_state(device_id, realm) do
+    Astarte.DataUpdaterPlant.RPC.DataUpdater.remove_device(device_id, realm)
+    Logger.info("Device removed from dup_rpc_handler state: #{inspect(device_id)}")
+  end
+
+  def handle_install_persistent_triggers(
+        %State{connected: false} = state,
+        _triggers,
+        _target
+      ) do
+    Logger.info("Device is not connected. Skipping persistent trigger installation.")
+    {:ok, state}
+  end
+
+  def handle_install_persistent_triggers(
+        state,
+        triggers,
+        target
+      ) do
+    Logger.info(
+      "Handling persistent trigger installation for device #{inspect(state.device_id)}",
+      realm: state.realm,
+      device_id: Device.encode_device_id(state.device_id)
+    )
+
+    results =
+      Enum.map(triggers, fn %{object_id: object_id, simple_trigger: trigger} ->
+        if Map.has_key?(state.interface_ids_to_name, object_id) do
+          interface_name = Map.get(state.interface_ids_to_name, object_id)
+          %InterfaceDescriptor{automaton: automaton} = state.interfaces[interface_name]
+
+          case trigger do
+            {:data_trigger, %ProtobufDataTrigger{match_path: "/*"}} ->
+              {:ok, Core.Trigger.load_trigger(state, trigger, target)}
+
+            {:data_trigger, %ProtobufDataTrigger{match_path: match_path}} ->
+              with {:ok, _endpoint_id} <- EndpointsAutomaton.resolve_path(match_path, automaton) do
+                {:ok, Core.Trigger.load_trigger(state, trigger, target)}
+              else
+                {:guessed, _} ->
+                  {:error, :invalid_match_path}
+
+                {:error, :not_found} ->
+                  {:error, :invalid_match_path}
+              end
+          end
+        else
+          case trigger do
+            {:data_trigger, %ProtobufDataTrigger{interface_name: "*"}} ->
+              {:ok, Core.Trigger.load_trigger(state, trigger, target)}
+
+            {:data_trigger,
+             %ProtobufDataTrigger{
+               interface_name: interface_name,
+               interface_major: major,
+               match_path: "/*"
+             }} ->
+              with :ok <-
+                     InterfaceQueries.check_if_interface_exists(
+                       state.realm,
+                       interface_name,
+                       major
+                     ) do
+                {:ok, state}
+              else
+                {:error, reason} ->
+                  {:error, reason}
+              end
+
+            {:data_trigger,
+             %ProtobufDataTrigger{
+               interface_name: interface_name,
+               interface_major: major,
+               match_path: match_path
+             }} ->
+              with {:ok, %InterfaceDescriptor{automaton: automaton}} <-
+                     InterfaceQueries.fetch_interface_descriptor(
+                       state.realm,
+                       interface_name,
+                       major
+                     ),
+                   {:ok, _endpoint_id} <- EndpointsAutomaton.resolve_path(match_path, automaton) do
+                {:ok, state}
+              else
+                {:error, :not_found} ->
+                  {:error, :invalid_match_path}
+
+                {:guessed, _} ->
+                  {:error, :invalid_match_path}
+
+                {:error, reason} ->
+                  {:error, reason}
+              end
+
+            {:device_trigger, _} ->
+              {:ok, Core.Trigger.load_trigger(state, trigger, target)}
+          end
+        end
+      end)
+
+    {:ok, results, state}
   end
 
   def handle_deactivation(_state) do
@@ -160,6 +281,12 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Impl do
       |> Core.Device.set_device_disconnected(timestamp)
 
     MessageTracker.ack_delivery(new_state.message_tracker, message_id)
+
+    remove_device_from_rpc_handler_state(
+      Device.encode_device_id(new_state.device_id),
+      new_state.realm
+    )
+
     Logger.info("Device disconnected.", tag: "device_disconnected")
 
     %{new_state | last_seen_message: timestamp}
@@ -175,10 +302,15 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Impl do
     |> Core.DataHandler.handle_data(interface, path, payload, message_id, timestamp)
   end
 
-  defdelegate handle_control(state, path, payload, message_id, timestamp), to: Core.ControlHandler
+  def handle_introspection(%State{discard_messages: true} = state, _, message_id, _) do
+    MessageTracker.discard(state.message_tracker, message_id)
+    state
+  end
 
   defdelegate handle_introspection(state, payload, message_id, timestamp),
     to: Core.IntrospectionHandler
+
+  defdelegate handle_control(state, path, payload, message_id, timestamp), to: Core.ControlHandler
 
   def handle_install_volatile_trigger(
         %State{discard_messages: true} = state,

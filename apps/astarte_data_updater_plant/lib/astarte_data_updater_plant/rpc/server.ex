@@ -24,7 +24,9 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server do
   calls to the appropriate dup services to handle the calls.
   """
 
-  alias Astarte.DataUpdaterPlant.RPC.Server.Core
+  alias Astarte.DataUpdaterPlant.RPC.Core.StateHandler
+  alias Astarte.DataUpdaterPlant.RPC.Core.Trigger
+  alias Astarte.DataUpdaterPlant.RPC.State
 
   use GenServer, restart: :transient
   require Logger
@@ -39,29 +41,12 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server do
   @impl GenServer
   def init(_args) do
     Process.flag(:trap_exit, true)
-    {:ok, []}
-  end
 
-  @impl GenServer
-  def handle_call({:install_volatile_trigger, volatile_trigger}, _from, state) do
-    reply = Core.install_volatile_trigger(volatile_trigger)
+    state = %State{
+      devices: %{}
+    }
 
-    with {:error, error} <- reply do
-      _ = Logger.warning("Error while intalling a new volatile trigger: #{inspect(error)}")
-    end
-
-    {:reply, reply, state}
-  end
-
-  @impl GenServer
-  def handle_call({:delete_volatile_trigger, delete_request}, _from, state) do
-    reply = Core.delete_volatile_trigger(delete_request)
-
-    with {:error, error} <- reply do
-      _ = Logger.warning("Error while deleting a volatile trigger: #{inspect(error)}")
-    end
-
-    {:reply, reply, state}
+    {:ok, state}
   end
 
   @impl GenServer
@@ -87,5 +72,34 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server do
       )
 
     {:stop, :shutdown, state}
+  end
+
+  @impl GenServer
+  def handle_call({:install_persistent_triggers, triggers}, _from, state) do
+    Trigger.install_persistent_triggers(triggers, state)
+  end
+
+  @impl GenServer
+  def handle_call({:add_device, device}, _from, state) do
+    Logger.debug(
+      "handle_call :add_device called with state: #{inspect(state)}, device: #{inspect(device)}"
+    )
+
+    new_state = StateHandler.add_device(state, device)
+    Logger.debug("New state after adding device: #{inspect(new_state)}")
+
+    {:reply, :ok, new_state}
+  end
+
+  @impl GenServer
+  def handle_call({:remove_device, device_id, realm}, _from, state) do
+    new_state = StateHandler.remove_device(state, device_id, realm)
+    {:reply, :ok, new_state}
+  end
+
+  @impl GenServer
+  def handle_call({:update_device_groups, device_id, realm, groups}, _from, state) do
+    new_state = StateHandler.update_device_groups(state, device_id, realm, groups)
+    {:reply, :ok, new_state}
   end
 end

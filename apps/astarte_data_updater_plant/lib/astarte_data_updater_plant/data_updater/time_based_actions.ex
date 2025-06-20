@@ -50,10 +50,15 @@ defmodule Astarte.DataUpdaterPlant.TimeBasedActions do
     |> reload_datastream_maximum_storage_retention_on_expiry(timestamp)
   end
 
+  defdelegate update_groups_in_rpc_handler_state, to: Astarte.DataUpdaterPlant.RPC.DataUpdater
+
   def reload_groups_on_expiry(state, timestamp) do
     if state.last_groups_refresh + @groups_lifespan_decimicroseconds <= timestamp do
       # TODO this could be a bang!
       {:ok, groups} = Queries.get_device_groups(state.realm, state.device_id)
+
+      Device.encode_device_id(state.device_id)
+      |> Astarte.DataUpdaterPlant.RPC.DataUpdater.update_device_groups(state.realm, groups)
 
       %{state | last_groups_refresh: timestamp, groups: groups}
     else
