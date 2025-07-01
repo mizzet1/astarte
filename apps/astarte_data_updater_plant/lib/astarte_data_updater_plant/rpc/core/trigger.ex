@@ -17,10 +17,9 @@
 #
 
 defmodule Astarte.DataUpdaterPlant.RPC.Core.Trigger do
-  alias ElixirSense.Log
-  alias Astarte.DataUpdaterPlant.RPC.State
-  alias Astarte.DataUpdaterPlant.RPC.Device
-  alias Astarte.DataUpdaterPlant.DataUpdater
+  alias Astarte.Core.Device
+  alias Astarte.DataUpdaterPlant.RPC.Queries
+  
   require Logger
 
   def get_trigger_installation_scope(simple_trigger) do
@@ -31,7 +30,9 @@ defmodule Astarte.DataUpdaterPlant.RPC.Core.Trigger do
             {:data_trigger_group, data_trigger.group_name}
 
           Map.has_key?(data_trigger, :device_id) and not is_nil(data_trigger.device_id) ->
-            {:data_trigger_device, data_trigger.device_id}
+            {:ok, decoded_device_id} = Device.decode_device_id(data_trigger.device_id)
+            {:device, decoded_device_id}
+           
 
           true ->
             {:all, nil}
@@ -39,40 +40,76 @@ defmodule Astarte.DataUpdaterPlant.RPC.Core.Trigger do
 
       {:device_trigger,
        %Astarte.Core.Triggers.SimpleTriggersProtobuf.DeviceTrigger{device_id: device_id}} ->
-        {:device, device_id}
+          {:ok, decoded_device_id} = Device.decode_device_id(device_id)
+          {:device, decoded_device_id}
     end
   end
 
-  def get_devices_to_notify(%State{} = state, scope) do
+  def get_pids_of_grouped_devices(realm, group_name) do
+  grouped_devices = Queries.fetch_grouped_devices(realm, group_name)
+
+  if grouped_devices == [] do
+    Logger.warning(
+      "No devices found in group #{inspect(group_name)} for realm #{inspect(realm)}."
+    )
+
+    []
+  else
+    results_one = Horde.Registry.select(
+      Registry.DataUpdater,
+      [
+        {{{realm, :"$2"}, :"$3", :_}, [], [{{:"$2", :"$3"}}]}
+      ]
+    )
+
+    filtered_results = Enum.filter(results_one, fn {device_id, _pid} ->
+      device_id in grouped_devices
+    end)
+
+    filtered_results
+  end
+end
+
+  def get_pids_for_realm(realm) do
+    Horde.Registry.select(
+      Registry.DataUpdater,
+      [{{{realm, :"$1"}, :"$2", :"$3"}, [], [{{:"$1", :"$2"}}]}]
+    )
+  end
+
+  def get_pids_of_devices_to_notify(realm, scope) do
     case scope do
       {:all, nil} ->
-        state
-        |> fetch_all_devices()
-        |> Enum.map(fn %Device{device_id: device_id, realm: realm} -> {device_id, realm} end)
+        get_pids_for_realm(realm)
 
       {:data_trigger_group, group_name} ->
-        state
-        |> fetch_devices_by_group(group_name)
-        |> Enum.map(fn %Device{device_id: device_id, realm: realm} -> {device_id, realm} end)
+        get_pids_of_grouped_devices(realm, group_name)
 
       {:device, device_id} ->
-        case fetch_device_by_id(state, device_id) do
-          {:ok, {device_id, realm}} ->
-            [{device_id, realm}]
 
-          {:error, :device_not_found} ->
-            Logger.error("Device with ID #{device_id} not found.")
+        case Horde.Registry.lookup(Registry.DataUpdater, {realm, device_id}) do
+          [] ->
+            Logger.warning(
+              "No process found for device #{inspect(device_id)} in realm #{inspect(realm)}."
+            )
+
             []
+
+          [{pid, _value} | _] ->
+          [{device_id, pid}] 
         end
 
       {:data_trigger_device, device_id} ->
-        case fetch_device_by_id(state, device_id) do
-          {:ok, {device_id, realm}} ->
-            [{device_id, realm}]
+        case Horde.Registry.lookup(Registry.DataUpdater, {realm, device_id}) do
+          [] ->
+            Logger.warning(
+              "No process found for data trigger device #{inspect(device_id)} in realm #{inspect(realm)}."
+            )
 
-          {:error, :device_not_found} ->
-            Logger.error("Device with ID #{device_id} not found.")
             []
+
+          [{pid, _value} | _] ->
+          [{device_id, pid}]
         end
 
       _ ->
@@ -84,7 +121,7 @@ defmodule Astarte.DataUpdaterPlant.RPC.Core.Trigger do
   def install_persistent_triggers(triggers, state) do
     Logger.info("Received request to install persistent triggers ...")
     Logger.info("Triggers details: #{inspect(triggers)}")
-    %{triggers: triggers, trigger_target: trigger_target} = triggers
+    %{realm: realm, triggers: triggers, trigger_target: trigger_target} = triggers
 
     results =
       triggers
@@ -92,36 +129,20 @@ defmodule Astarte.DataUpdaterPlant.RPC.Core.Trigger do
         scope = get_trigger_installation_scope(simple_trigger)
         Logger.info("Determined scope for trigger installation: #{inspect(scope)}")
 
-        devices_to_notify = get_devices_to_notify(state, scope)
-
-        Logger.info("Devices to notify for trigger installation: #{inspect(devices_to_notify)}")
+        devices_to_notify = get_pids_of_devices_to_notify(realm, scope)
+        Logger.info("Devices to notify: #{inspect(devices_to_notify)}")
 
         devices_to_notify
         |> Task.async_stream(
-          fn {device_id, realm} ->
-            Logger.info("Processing device #{device_id} in realm #{realm}.")
+          fn {device_id, pid} ->
+            Logger.info("Processing trigger installation for device #{Device.encode_device_id(device_id)}...}")
 
-            with :ok <- DataUpdater.verify_device_exists(realm, device_id),
-                 {:ok, message_tracker} <- DataUpdater.fetch_message_tracker(realm, device_id),
-                 {:ok, dup} <-
-                   DataUpdater.fetch_data_updater_process(realm, device_id, message_tracker) do
-              Logger.info("Successfully fetched DataUpdaterProcess for device #{device_id}.")
-
-              reply =
-                GenServer.call(
-                  dup,
-                  {:handle_install_persistent_triggers, triggers, trigger_target}
-                )
-
-              Logger.info("Trigger installed successfully for device #{device_id}.")
-              {:ok, reply}
-            else
+            case GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target}) do
               {:error, error} ->
-                Logger.error(
-                  "Error #{inspect(error)} while processing device #{device_id} for `install_persistent_triggers`."
-                )
+                Logger.error("Error #{inspect(error)} while processing device #{Device.encode_device_id(device_id)} for `install_persistent_triggers`.")
 
-                {:error, error}
+              _ ->
+                Logger.info("Trigger installed successfully for device #{Device.encode_device_id(device_id)}.")
             end
           end,
           max_concurrency: 10,
@@ -132,24 +153,4 @@ defmodule Astarte.DataUpdaterPlant.RPC.Core.Trigger do
 
     {:reply, {:ok, results}, state}
   end
-
-  def convert_extended_device_id_to_string(extended_device_id) do
-    Ecto.UUID.dump!(extended_device_id)
-    |> Astarte.Core.Device.encode_device_id()
-  end
-
-  def fetch_devices_by_group(%State{devices: devices}, group) do
-    devices
-    |> Map.values()
-    |> Enum.filter(fn %Device{groups: groups} -> groups && group in groups end)
-  end
-
-  # TODO: check if the cache is stale
-  def fetch_device_by_id(%State{devices: devices}, device_id) do
-    with :error <- Map.fetch(devices, device_id) do
-      {:error, :device_not_found}
-    end
-  end
-
-  defp fetch_all_devices(%State{devices: devices}), do: Map.values(devices)
 end

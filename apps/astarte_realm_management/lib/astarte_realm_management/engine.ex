@@ -473,6 +473,7 @@ defmodule Astarte.RealmManagement.Engine do
       extracted_simple_triggers = Enum.map(simple_trigger_maps, & &1.simple_trigger)
 
       request_data = %{
+        realm: realm_name,
         triggers:
           Enum.map(simple_trigger_maps, fn simple_trigger_map ->
             %{

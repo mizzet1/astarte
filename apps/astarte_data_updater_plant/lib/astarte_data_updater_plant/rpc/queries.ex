@@ -3,27 +3,31 @@ defmodule Astarte.DataUpdaterPlant.RPC.Queries do
   alias Astarte.DataAccess.Consistency
   alias Astarte.DataAccess.Realms.Realm
   alias Astarte.DataAccess.Repo
-  alias Astarte.DataAccess.Devices.Device
+  alias Astarte.DataAccess.Groups.GroupedDevice
   require Logger
 
-  def fetch_connected_devices(realm_name) do
+  def fetch_grouped_devices(realm_name, group) do
     keyspace = Realm.keyspace_name(realm_name)
 
     query =
-      from(Device,
+      from(GroupedDevice,
         hints: ["ALLOW FILTERING"],
-        where: [connected: true],
-        select: [:device_id, :groups]
+        where: [group_name: ^group],
+        select: [:device_id]
       )
 
     consistency = Consistency.domain_model(:read)
-    Repo.fetch_all(query, prefix: keyspace, consistency: consistency)
-  end
 
-  def fetch_realms! do
-    keyspace = Realm.astarte_keyspace_name()
-    query = from(realm in "realms", select: realm.realm_name)
-    consistency = Consistency.domain_model(:read)
-    Repo.fetch_all(query, prefix: keyspace, consistency: consistency)
+    case Repo.fetch_all(query, prefix: keyspace, consistency: consistency) do
+      {:ok, result} ->
+     
+        device_ids = Enum.map(result, & &1.device_id)
+        Logger.info("Fetched device IDs for group #{inspect(group)} in realm #{inspect(realm_name)}: #{inspect(device_ids)}")
+        device_ids
+
+      {:error, reason} ->
+        Logger.error("Failed to fetch devices for group #{inspect(group)} in realm #{inspect(realm_name)}: #{inspect(reason)}")
+        []
+    end
   end
 end

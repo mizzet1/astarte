@@ -29,8 +29,9 @@ defmodule Astarte.RealmManagement.RPC.DataUpdaterPlant.Trigger do
                    Astarte.RealmManagement.RPC.DataUpdaterPlant.Client
                  )
 
-  def install_persistent_triggers(triggers, serialized_trigger_target) do
+  def install_persistent_triggers(realm, triggers, serialized_trigger_target) do
     request_data = %{
+      realm: realm,
       triggers:
         Enum.map(triggers, fn trigger ->
           %{
