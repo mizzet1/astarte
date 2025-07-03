@@ -54,6 +54,7 @@ defmodule Astarte.DataUpdaterPlantWeb.Telemetry do
       last_value("vm.total_run_queue_lengths.cpu"),
       last_value("vm.total_run_queue_lengths.io"),
       last_value("vm.refresh"),
+      
 
       # Custom metrics
       counter("astarte.data_updater_plant.data_updater.device_connection.count",
@@ -94,6 +95,34 @@ defmodule Astarte.DataUpdaterPlantWeb.Telemetry do
         tags: [:realm],
         unit: {:native, :millisecond}
       ),
+
+      # Trigger notification metrics
+      counter("astarte.trigger_notifications.initiated.count",
+        description: "Number of trigger notifications initiated"
+      ),
+      counter("astarte.trigger_notifications.received_by_DUP_RPC_handler.count",
+        description: "Number of trigger notifications received by DUP RPC handler"
+      ),
+      counter("astarte.trigger_notifications.delivered.count",
+        description: "Number of trigger notifications successfully delivered to DataUpdater processes"
+      ),
+      counter("astarte.trigger_notifications.failed.count", 
+        tags: [:failure_reason],
+        description: "Number of failed trigger notification deliveries to DataUpdater processes"
+      ),
+      counter("astarte.trigger_notifications.batch_completed.count",
+        description: "Number of trigger notification batches completed"
+      ),
+
+      last_value("astarte.trigger_notifications.delivery_rate.percent",
+        description: "Trigger notification delivery rate percentage over last 5 minutes"
+      ),
+      
+      last_value("astarte.trigger_notifications.batch_processing.duration",
+        unit: {:native, :millisecond},
+        description: "Time taken to process a trigger notification batch"
+      ),
+      
       last_value("astarte.data_updater_plant.service.health",
         tags: [:status],
         description: "Service state: 1 if good, 0 if not."

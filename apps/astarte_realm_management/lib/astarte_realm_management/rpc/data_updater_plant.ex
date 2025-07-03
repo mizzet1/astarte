@@ -29,7 +29,7 @@ defmodule Astarte.RealmManagement.RPC.DataUpdaterPlant.Trigger do
                    Astarte.RealmManagement.RPC.DataUpdaterPlant.Client
                  )
 
-  def install_persistent_triggers(realm, triggers, serialized_trigger_target) do
+  def install_persistent_triggers(realm, triggers, serialized_trigger_target, trigger_uuid) do
     request_data = %{
       realm: realm,
       triggers:
@@ -39,7 +39,8 @@ defmodule Astarte.RealmManagement.RPC.DataUpdaterPlant.Trigger do
             simple_trigger: trigger.simple_trigger
           }
         end),
-      trigger_target: serialized_trigger_target
+      trigger_target: serialized_trigger_target,
+      trigger_uuid: trigger_uuid
     }
 
     @rpc_behaviour.install_persistent_triggers(request_data)

@@ -119,11 +119,12 @@ end
   end
 
   def install_persistent_triggers(triggers, state) do
+    start_time = System.monotonic_time()
     Logger.info("Received request to install persistent triggers ...")
     Logger.info("Triggers details: #{inspect(triggers)}")
     %{realm: realm, triggers: triggers, trigger_target: trigger_target} = triggers
 
-    results =
+    {successful_calls, total_calls} =
       triggers
       |> Enum.map(fn %{simple_trigger: simple_trigger} ->
         scope = get_trigger_installation_scope(simple_trigger)
@@ -139,18 +140,62 @@ end
 
             case GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target}) do
               {:error, error} ->
+                :telemetry.execute(
+                  [:trigger_notification, :error],
+                  %{count: 1},
+                  %{realm: realm, device_id: Device.encode_device_id(device_id), trigger_uuid: triggers.trigger_uuid}
+                )
                 Logger.error("Error #{inspect(error)} while processing device #{Device.encode_device_id(device_id)} for `install_persistent_triggers`.")
+                {:error, :failed}
 
               _ ->
+                :telemetry.execute(
+                  [:trigger_notification, :dispatched],
+                  %{count: 1},
+                  %{realm: realm, device_id: Device.encode_device_id(device_id), trigger_uuid: triggers.trigger_uuid}
+                )
                 Logger.info("Trigger installed successfully for device #{Device.encode_device_id(device_id)}.")
+                {:ok, :success}
             end
           end,
           max_concurrency: 10,
           timeout: :infinity
         )
-        |> Enum.to_list()
+        |> Enum.reduce({0, 0}, fn
+          {:ok, :success}, {success_acc, total_acc} -> {success_acc + 1, total_acc + 1}
+          _, {success_acc, total_acc} -> {success_acc, total_acc + 1}
+        end)
+      end)
+      |> Enum.reduce({0, 0}, fn {success, total}, {success_acc, total_acc} ->
+        {success_acc + success, total_acc + total}
       end)
 
-    {:reply, {:ok, results}, state}
+    success_ratio = if total_calls > 0, do: successful_calls / total_calls, else: 0.0
+
+    Logger.info("Total successful trigger installations: #{successful_calls} out of #{total_calls} (Success Ratio: #{success_ratio * 100}%)")
+
+    end_time = System.monotonic_time()
+    duration = System.convert_time_unit(end_time - start_time, :native, :millisecond)
+    Logger.info("Trigger installation completed in #{duration} ms.")
+
+    :telemetry.execute(
+      [:astarte, :trigger_notifications, :batch_completed],
+      %{count: 1},
+      %{
+        notification_id: triggers.trigger_uuid,
+        total_targets: total_calls,
+        delivered_count: successful_calls,
+        failed_count: total_calls - successful_calls,
+      }
+    )
+    
+    :telemetry.execute(
+      [:astarte, :trigger_notifications, :batch_processing, :duration],
+      %{duration: duration},
+      %{notification_id: triggers.trigger_uuid}
+    )
+
+    {:reply, {:ok, %{successful_calls: successful_calls, total_calls: total_calls, success_ratio: success_ratio}}, state}
   end
+
 end

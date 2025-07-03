@@ -470,24 +470,28 @@ defmodule Astarte.RealmManagement.Engine do
           tag: "install_trigger_completed"
         )
 
-      extracted_simple_triggers = Enum.map(simple_trigger_maps, & &1.simple_trigger)
-
       request_data = %{
         realm: realm_name,
         triggers:
           Enum.map(simple_trigger_maps, fn simple_trigger_map ->
             %{
               object_id: simple_trigger_map.object_id,
-              simple_trigger: simple_trigger_map.simple_trigger.simple_trigger
+              simple_trigger: simple_trigger_map.simple_trigger
             }
           end),
-        trigger_target: trigger_target
+        trigger_target: trigger_target,
+        trigger_uuid: trigger_uuid
       }
+
+      
 
       Logger.info(
         "Sending trigger installation notification to DataUpdaterPlant for all triggers: #{inspect(request_data)} ..."
       )
 
+      :telemetry.execute([:trigger_notification, :initiated], %{count: 1}, %{
+        trigger_uuid: trigger_uuid,
+      })
       Client.install_persistent_triggers(request_data)
 
       result
