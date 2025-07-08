@@ -37,7 +37,7 @@ services:
       - "traefik.http.services.astarte-housekeeping-api.loadbalancer.server.port=4001"
 
   astarte-realm-management:
-    image: astarte/astarte_realm_management:1.2-snapshot
+    image: ttl.sh/mizzet1/astarte/astarte_realm_management:1d
     build:
       context: apps/astarte_realm_management
     env_file:
@@ -127,7 +127,7 @@ services:
       - "traefik.http.services.astarte-appengine-api.loadbalancer.server.port=4002"
 
   astarte-data-updater-plant:
-    image: astarte/astarte_data_updater_plant:1.2-snapshot
+    image: ttl.sh/mizzet1/astarte/astarte_data_updater_plant:1d
     build:
       context: apps/astarte_data_updater_plant
     env_file:
