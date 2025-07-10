@@ -107,7 +107,8 @@ defmodule Astarte.RealmManagementWeb.Telemetry do
         tags: [:realm]
       ),
       counter("astarte.realm_management.trigger_notification.call.count",
-        tags: [:realm]
+        tags: [:realm],
+        tag_values: &extract_realm_tags/1
       ),
       sum("astarte.realm_management.api.request.request_body_bytes",
         tags: [:realm]
@@ -147,5 +148,13 @@ defmodule Astarte.RealmManagementWeb.Telemetry do
 
   defp extract_router_tags(%{conn: %{method: method}, route: route}) do
     %{method: method, route: route}
+  end
+
+  defp extract_realm_tags(%{realm: realm}) do
+    %{realm: realm}
+  end
+
+  defp extract_realm_tags(_metadata) do
+    %{realm: "unknown"}
   end
 end
