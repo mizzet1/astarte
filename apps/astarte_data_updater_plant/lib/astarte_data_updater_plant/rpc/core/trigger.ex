@@ -118,10 +118,19 @@ end
     end
   end
 
-  def install_persistent_triggers(triggers, state) do
+  def install_persistent_triggers(request_data, state) do
+    
+    start_time = System.monotonic_time()
+
     Logger.info("Received request to install persistent triggers ...")
-    Logger.info("Triggers details: #{inspect(triggers)}")
-    %{realm: realm, triggers: triggers, trigger_target: trigger_target} = triggers
+    Logger.info("Triggers details: #{inspect(request_data)}")
+    %{trigger_name: trigger_name, realm: realm, triggers: triggers, trigger_target: trigger_target} = request_data
+
+    :telemetry.execute(
+      [:astarte, :trigger_installation, :install_persistent_triggers],
+      %{start_time: start_time},
+      %{realm: realm, trigger_name: trigger_name}
+    )
 
     results =
       triggers
@@ -139,17 +148,35 @@ end
 
             case GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target}) do
               {:error, error} ->
+                :telemetry.execute(
+                  [:astarte, :trigger_installation, :data_updater_dispatching, :error],
+                  %{count: 1},
+                  %{realm: realm, trigger_name: trigger_name, error_cause: error}
+                )
                 Logger.error("Error #{inspect(error)} while processing device #{Device.encode_device_id(device_id)} for `install_persistent_triggers`.")
 
               _ ->
+                :telemetry.execute(
+                  [:astarte, :trigger_installation, :data_updater_dispatching, :success],
+                  %{count: 1},
+                  %{realm: realm, trigger_name: trigger_name}
+                )
                 Logger.info("Trigger installed successfully for device #{Device.encode_device_id(device_id)}.")
             end
           end,
-          max_concurrency: 10,
+          max_concurrency: 100,
           timeout: :infinity
         )
         |> Enum.to_list()
       end)
+
+    end_time = System.monotonic_time()
+    duration = System.convert_time_unit(end_time - start_time, :native, :millisecond) 
+    :telemetry.execute(
+      [:astarte, :trigger_installation, :install_persistent_triggers],
+      %{end_time: end_time, duration: duration},
+      %{realm: realm, trigger_name: trigger_name}
+    )
 
     {:reply, {:ok, results}, state}
   end
