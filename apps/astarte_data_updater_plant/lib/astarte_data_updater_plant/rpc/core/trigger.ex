@@ -141,33 +141,7 @@ end
         devices_to_notify = get_pids_of_devices_to_notify(realm, scope)
         Logger.info("Devices to notify: #{inspect(devices_to_notify)}")
 
-        devices_to_notify
-        |> Task.async_stream(
-          fn {device_id, pid} ->
-            Logger.info("Processing trigger installation for device #{Device.encode_device_id(device_id)}...}")
-
-            case GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target}) do
-              {:error, error} ->
-                :telemetry.execute(
-                  [:astarte, :trigger_installation, :data_updater_dispatching, :error],
-                  %{count: 1},
-                  %{realm: realm, trigger_name: trigger_name, error_cause: error}
-                )
-                Logger.error("Error #{inspect(error)} while processing device #{Device.encode_device_id(device_id)} for `install_persistent_triggers`.")
-
-              _ ->
-                :telemetry.execute(
-                  [:astarte, :trigger_installation, :data_updater_dispatching, :success],
-                  %{count: 1},
-                  %{realm: realm, trigger_name: trigger_name}
-                )
-                Logger.info("Trigger installed successfully for device #{Device.encode_device_id(device_id)}.")
-            end
-          end,
-          max_concurrency: 100,
-          timeout: :infinity
-        )
-        |> Enum.to_list()
+        dispatch_trigger_notifications(devices_to_notify, triggers, trigger_target, realm, trigger_name)
       end)
 
     end_time = System.monotonic_time()
@@ -179,5 +153,39 @@ end
     )
 
     {:reply, {:ok, results}, state}
+  end
+
+  defp dispatch_trigger_notifications(devices_to_notify, triggers, trigger_target, realm, trigger_name) do
+    devices_to_notify
+    |> Task.async_stream(
+      fn {device_id, pid} ->
+        send_trigger_notification(device_id, pid, triggers, trigger_target, realm, trigger_name)
+      end,
+      max_concurrency: 100,
+      timeout: :infinity
+    )
+    |> Enum.to_list()
+  end
+
+  defp send_trigger_notification(device_id, pid, triggers, trigger_target, realm, trigger_name) do
+    Logger.info("Processing trigger installation for device #{Device.encode_device_id(device_id)}...")
+
+    case GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target}) do
+      {:error, error} ->
+        :telemetry.execute(
+          [:astarte, :trigger_installation, :data_updater_dispatching, :error],
+          %{count: 1},
+          %{realm: realm, trigger_name: trigger_name, error_cause: error}
+        )
+        Logger.error("Error #{inspect(error)} while processing device #{Device.encode_device_id(device_id)} for `install_persistent_triggers`.")
+
+      _ ->
+        :telemetry.execute(
+          [:astarte, :trigger_installation, :data_updater_dispatching, :success],
+          %{count: 1},
+          %{realm: realm, trigger_name: trigger_name}
+        )
+        Logger.info("Trigger installed successfully for device #{Device.encode_device_id(device_id)}.")
+    end
   end
 end

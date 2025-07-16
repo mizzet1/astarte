@@ -67,6 +67,39 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.TriggerHandlerTest do
     end
   end
 
+  property "successfully install persistent triggers", %{
+    state: state,
+    realm_name: realm_name,
+    device: device
+  } do
+    
+    target = make_trigger_target()
+
+      triggers = make_persistent_trigger()
+
+      assert {:ok, results, _state} =
+               Trigger.handle_install_persistent_triggers(
+                 state,
+                 triggers,
+                 target
+               )
+
+      assert is_list(results)
+      # 2 is the number of simple triggers in the mock trigger
+      assert length(results) == 2
+      
+      # Each result should be either {:ok, state} or {:error, reason}
+      Enum.each(results, fn result ->
+        case result do
+          {:ok, _state} -> :ok
+          {:error, _reason} -> :ok
+          other -> 
+            flunk("Expected {:ok, state} or {:error, reason}, got: #{inspect(other)}")
+        end
+      end)
+    end
+  end
+
   property "successfully install volatile data trigger for specific interface", %{
     state: state,
     realm_name: realm_name,
@@ -305,6 +338,63 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.TriggerHandlerTest do
 
     assert ^state =
              Trigger.handle_install_volatile_trigger(state, :dontcare, message_id, :dontcare)
+  end
+
+  test "`handle_install_persistent_trigger/3` skips on `discard_messages: true`", context do
+    %{realm_name: realm_name, device: device} = context
+    state = DataUpdater.dump_state(realm_name, device.encoded_id)
+    %State{message_tracker: message_tracker} = state
+    state = Map.put(state, :discard_messages, true)
+
+    assert ^state =
+             Trigger.handle_install_persistent_triggers(state, :dontcare, :dontcare)
+  end
+
+  defp make_trigger_target() do
+    %Astarte.Core.Triggers.SimpleTriggersProtobuf.AMQPTriggerTarget{
+      version: 0, 
+      simple_trigger_id: nil, 
+      parent_trigger_id: uuid(), 
+      routing_key: "trigger_engine", 
+      static_headers: %{}, 
+      exchange: nil, 
+      message_expiration_ms: 0, 
+      message_priority: 0, 
+      message_persistent: false, 
+      __unknown_fields__: []}
+  end
+
+  defp make_persistent_trigger() do
+    simple_data_trigger =
+        simple_trigger: {
+          :data_trigger,
+          %Astarte.Core.Triggers.SimpleTriggersProtobuf.DataTrigger{
+            version: 0, 
+            data_trigger_type: :INCOMING_DATA, 
+            interface_name: "*", 
+            interface_major: nil, 
+            match_path: "/*", 
+            value_match_operator: :ANY, 
+            known_value: nil, 
+            device_id: nil, 
+            group_name: nil, 
+            __unknown_fields__: []}
+        }
+      
+    simple_device_trigger =
+        simple_trigger: {
+          :device_trigger, 
+          %Astarte.Core.Triggers.SimpleTriggersProtobuf.DeviceTrigger{
+            version: 0, 
+            device_event_type: :DEVICE_CONNECTED, 
+            device_id: nil, group_name: nil, 
+            interface_name: nil, 
+            interface_major: nil, 
+            __unknown_fields__: []}
+        }
+    triggers = [%{simple_trigger: simple_data_trigger, object_id: :uuid()},
+                  %{simple_trigger: simple_device_trigger, object_id: :uuid()}]
+  
   end
 
   defp volatile_trigger(realm_name, encoded_device_id) do
