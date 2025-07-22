@@ -31,6 +31,18 @@ defmodule Astarte.DataUpdaterPlant.RPC.ServerTest do
     %{rpc_server: rpc_server}
   end
 
+  property ":install_persistent_triggers request gets handled by the Core module", %{
+    rpc_server: rpc_server
+  } do
+    check all answer <- answer(), payload <- payload() do
+      Astarte.DataUpdaterPlant.RPC.Server.Core
+      |> allow(self(), rpc_server)
+      |> expect(:install_persistent_triggers, fn ^payload -> answer end)
+
+      assert ^answer = GenServer.call(rpc_server, {:install_persistent_triggers, payload})
+    end
+  end
+
   property ":install_volatile_trigger request gets handled by the Core module", %{
     rpc_server: rpc_server
   } do

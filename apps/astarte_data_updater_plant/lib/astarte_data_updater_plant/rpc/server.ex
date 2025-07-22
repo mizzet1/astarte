@@ -65,6 +65,12 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server do
   end
 
   @impl GenServer
+  def handle_call({:install_persistent_triggers, triggers}, _from, state) do
+    result = Core.install_persistent_triggers(triggers)
+    {:reply, result, state}
+  end
+
+  @impl GenServer
   def handle_info(
         {:EXIT, _pid, {:name_conflict, {_name, _value}, _registry, _winning_pid}},
         state
@@ -89,9 +95,4 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server do
     {:stop, :shutdown, state}
   end
 
-  @impl GenServer
-  def handle_call({:install_persistent_triggers, triggers}, _from, state) do
-    result = Core.install_persistent_triggers(triggers)
-    {:reply, result, state}
-  end
 end

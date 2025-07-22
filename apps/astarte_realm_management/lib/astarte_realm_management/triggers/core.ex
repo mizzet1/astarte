@@ -27,7 +27,6 @@ defmodule Astarte.RealmManagement.Triggers.Core do
   alias Astarte.RealmManagement.Triggers.Trigger
   alias Astarte.RealmManagement.Triggers.Queries
   alias Astarte.RealmManagement.RPC.DataUpdaterPlant.Client
-  alias Astarte.Core.Triggers.SimpleTriggersProtobuf.Utils, as: SimpleTriggersProtobufUtils
 
   require Logger
 
@@ -92,6 +91,7 @@ defmodule Astarte.RealmManagement.Triggers.Core do
          ),
          :ok <- Queries.install_trigger(realm_name, trigger) do
          request_data = %{
+        trigger_name: trigger_name,
         realm: realm_name,
         triggers:
           Enum.map(simple_trigger_maps, fn simple_trigger_map ->

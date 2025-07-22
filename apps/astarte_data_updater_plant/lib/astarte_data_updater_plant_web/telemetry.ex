@@ -100,7 +100,30 @@ defmodule Astarte.DataUpdaterPlantWeb.Telemetry do
       ),
       sum("astarte.data_updater_plant.service.connected_devices.duration",
         tags: [:realm]
+      ),
+
+      # Trigger installation metrics
+      counter("astarte.trigger_installation.install_persistent_triggers.count",
+        tags: [:realm, :trigger_name],
+        description: "Count of trigger installation requests started."
+      ),
+
+      last_value("astarte.trigger_installation.install_persistent_triggers.duration",
+        unit: {:native, :millisecond},
+        tags: [:realm, :trigger_name],
+        description: "Duration of trigger installation process."
+      ),
+
+      counter("astarte.trigger_installation.data_updater_dispatching.success.count",
+        tags: [:realm, :trigger_name],
+        description: "Count of successful trigger installations."
+      ),
+
+      counter("astarte.trigger_installation.data_updater_dispatching.errors.count",
+        tags: [:realm, :trigger_name, :error_type],
+        description: "Count of failed trigger installations grouped by type (error, exit, timeout)."
       )
+
     ]
   end
 

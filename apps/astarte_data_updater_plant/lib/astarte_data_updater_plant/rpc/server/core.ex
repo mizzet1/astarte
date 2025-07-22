@@ -26,8 +26,6 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server.Core do
   alias Astarte.DataUpdaterPlant.DataUpdater
   alias Astarte.Core.Device
   alias Astarte.DataUpdaterPlant.RPC.Queries
-  alias Astarte.Core.Device
-  alias Astarte.DataUpdaterPlant.RPC.Queries
 
   def install_volatile_trigger(volatile_trigger) do
     %{
@@ -95,29 +93,29 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server.Core do
   end
 
   defp get_pids_of_grouped_devices(realm, group_name) do
-  grouped_devices = Queries.fetch_grouped_devices(realm, group_name)
+    grouped_devices = Queries.fetch_grouped_devices(realm, group_name)
 
-  if grouped_devices == [] do
-    Logger.warning(
-      "No devices found in group #{inspect(group_name)} for realm #{inspect(realm)}."
-    )
+    if grouped_devices == [] do
+      Logger.warning(
+        "No devices found in group #{inspect(group_name)} for realm #{inspect(realm)}."
+      )
 
-    []
-  else
-    results_one = Horde.Registry.select(
-      Registry.DataUpdater,
-      [
-        {{{realm, :"$2"}, :"$3", :_}, [], [{{:"$2", :"$3"}}]}
-      ]
-    )
+      []
+    else
+      results_one = Horde.Registry.select(
+        Registry.DataUpdater,
+        [
+          {{{realm, :"$2"}, :"$3", :_}, [], [{{:"$2", :"$3"}}]}
+        ]
+      )
 
-    filtered_results = Enum.filter(results_one, fn {device_id, _pid} ->
-      device_id in grouped_devices
-    end)
+      filtered_results = Enum.filter(results_one, fn {device_id, _pid} ->
+        device_id in grouped_devices
+      end)
 
-    filtered_results
+      filtered_results
+    end
   end
-end
 
   defp get_pids_for_realm(realm) do
     Horde.Registry.select(
@@ -135,42 +133,34 @@ end
         get_pids_of_grouped_devices(realm, group_name)
 
       {:device, device_id} ->
-
         case Horde.Registry.lookup(Registry.DataUpdater, {realm, device_id}) do
           [] ->
             Logger.warning(
               "No process found for device #{inspect(device_id)} in realm #{inspect(realm)}."
             )
-
             []
 
           [{pid, _value} | _] ->
-          [{device_id, pid}] 
+            [{device_id, pid}]
         end
-
-      {:data_trigger_device, device_id} ->
-        case Horde.Registry.lookup(Registry.DataUpdater, {realm, device_id}) do
-          [] ->
-            Logger.warning(
-              "No process found for data trigger device #{inspect(device_id)} in realm #{inspect(realm)}."
-            )
-
-            []
-
-          [{pid, _value} | _] ->
-          [{device_id, pid}]
-        end
-
-      _ ->
-        Logger.error("Unknown scope for trigger installation detected: #{inspect(scope)}")
-        []
     end
   end
 
-  def install_persistent_triggers(triggers) do
+  def install_persistent_triggers(%{
+        trigger_name: trigger_name,
+        realm: realm,
+        triggers: triggers,
+        trigger_target: trigger_target
+      }) do
+    start_time = System.monotonic_time()
+
     Logger.debug("Received request to install persistent triggers: #{inspect(triggers)}")
 
-    %{realm: realm, triggers: triggers, trigger_target: trigger_target} = triggers
+    :telemetry.execute(
+      [:astarte, :trigger_installation, :install_persistent_triggers],
+      %{start_time: start_time},
+      %{realm: realm, trigger_name: trigger_name}
+    )
 
     scope = get_trigger_installation_scope(List.first(triggers))
     Logger.debug("Determined scope for triggers installation: #{inspect(scope)}")
@@ -178,27 +168,94 @@ end
     devices_to_notify = get_pids_of_devices_to_notify(realm, scope)
     Logger.debug("Devices to notify: #{inspect(devices_to_notify)}")
 
-    # Sending trigger (batch of simple_triggers) to each device
     results =
-        devices_to_notify
+      devices_to_notify
       |> Task.async_stream(
         fn {device_id, pid} ->
-          Logger.debug("Processing trigger installation for device #{Device.encode_device_id(device_id)}...")
-
-          case GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target}) do
-            {:error, error} ->
-              Logger.error("Error #{inspect(error)} while processing device #{Device.encode_device_id(device_id)} for `install_persistent_triggers`.")
-
-            _ ->
-              Logger.debug("Trigger installed successfully for device #{Device.encode_device_id(device_id)}.")
-          end
+          handle_device_trigger_installation(device_id, pid, triggers, trigger_target, %{realm: realm, trigger_name: trigger_name})
         end,
         max_concurrency: 250,
         timeout: :infinity
       )
       |> Enum.to_list()
 
+    end_time = System.monotonic_time()
+    duration = System.convert_time_unit(end_time - start_time, :native, :millisecond)
+
+    :telemetry.execute(
+      [:astarte, :trigger_installation, :install_persistent_triggers],
+      %{end_time: end_time, duration: duration},
+      %{realm: realm, trigger_name: trigger_name}
+    )
+
     {:ok, results}
   end
 
+  defp handle_device_trigger_installation(device_id, pid, triggers, trigger_target, metadata) do
+    device_str = Device.encode_device_id(device_id)
+    Logger.debug("Processing trigger installation for device #{device_str}...")
+
+    start_time = System.monotonic_time()
+
+    result =
+      try do
+        GenServer.call(pid, {:handle_install_persistent_triggers, triggers, trigger_target})
+      catch
+        :exit, reason -> {:exit, reason}
+        :error, reason -> {:error, reason}
+      end
+
+    duration = System.monotonic_time() - start_time
+
+    case result do
+      {:ok, _results, _state} ->
+        log_trigger_success(metadata, duration, device_str)
+        {:ok, device_id}
+
+      {:error, reason} ->
+        log_trigger_error(:error, reason, metadata, duration, device_str)
+        {:error, {device_id, reason}}
+
+      {:exit, reason} ->
+        log_trigger_error(:exit, reason, metadata, duration, device_str)
+        {:error, {device_id, reason}}
+
+      other ->
+        log_trigger_error(:unexpected, other, metadata, duration, device_str)
+        {:error, {device_id, other}}
+    end
+  end
+
+  defp log_trigger_success(%{realm: realm, trigger_name: name}, duration, device_str) do
+    :telemetry.execute(
+      [:astarte, :trigger_installation, :data_updater_dispatching, :success],
+      %{count: 1, duration: duration},
+      %{realm: realm, trigger_name: name, device_id: device_str}
+    )
+
+    Logger.debug("Trigger installed successfully for device #{device_str}.")
+  end
+
+  defp log_trigger_error(error_type, reason, %{realm: realm, trigger_name: name}, duration, device_str) do
+    error_message =
+      case error_type do
+        :exit -> "GenServer exited due to #{inspect(reason)}"
+        :error -> "GenServer call error due to #{inspect(reason)}"
+        :unexpected -> "Unexpected result due to #{inspect(reason)}"
+      end
+
+    Logger.error("#{error_message} while processing device #{device_str} for `install_persistent_triggers`.")
+
+    :telemetry.execute(
+      [:astarte, :trigger_installation, :data_updater_dispatching, :error],
+      %{count: 1, duration: duration},
+      %{
+        realm: realm,
+        trigger_name: name,
+        reason: error_message,
+        device_id: device_str,
+        error_type: error_type
+      }
+    )
+  end
 end

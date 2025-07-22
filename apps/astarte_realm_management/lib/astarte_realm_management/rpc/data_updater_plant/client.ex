@@ -20,12 +20,18 @@
 
 defmodule Astarte.RealmManagement.RPC.DataUpdaterPlant.Client do
   @moduledoc false
-  @behaviour Astarte.RealmManagement.RPC.DataUpdaterPlant.Behaviour
 
   require Logger
 
-  @impl Astarte.RealmManagement.RPC.DataUpdaterPlant.Behaviour
   def install_persistent_triggers(request_data) do
+    realm = Map.fetch!(request_data, :realm)
+
+    :telemetry.execute(
+      [:astarte, :realm_management, :trigger_notification, :call],
+      %{count: 1},
+      %{realm: realm}
+    )
+
     server_via_tuple()
     |> GenServer.call({:install_persistent_triggers, request_data})
   end
