@@ -154,7 +154,7 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server.Core do
       }) do
     start_time = System.monotonic_time()
 
-    Logger.debug("Received request to install persistent triggers: #{inspect(triggers)}")
+    Logger.info("Received request to install persistent triggers: #{inspect(triggers)}")
 
     :telemetry.execute(
       [:astarte, :trigger_installation, :install_persistent_triggers],
@@ -163,10 +163,10 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server.Core do
     )
 
     scope = get_trigger_installation_scope(List.first(triggers))
-    Logger.debug("Determined scope for triggers installation: #{inspect(scope)}")
+    Logger.info("Determined scope for triggers installation: #{inspect(scope)}")
 
     devices_to_notify = get_pids_of_devices_to_notify(realm, scope)
-    Logger.debug("Devices to notify: #{inspect(devices_to_notify)}")
+    Logger.info("Devices to notify: #{inspect(devices_to_notify)}")
 
     results =
       devices_to_notify
@@ -193,7 +193,7 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server.Core do
 
   defp handle_device_trigger_installation(device_id, pid, triggers, trigger_target, metadata) do
     device_str = Device.encode_device_id(device_id)
-    Logger.debug("Processing trigger installation for device #{device_str}...")
+    Logger.info("Processing trigger installation for device #{device_str}...")
 
     start_time = System.monotonic_time()
 
@@ -233,7 +233,7 @@ defmodule Astarte.DataUpdaterPlant.RPC.Server.Core do
       %{realm: realm, trigger_name: name, device_id: device_str}
     )
 
-    Logger.debug("Trigger installed successfully for device #{device_str}.")
+    Logger.info("Trigger installed successfully for device #{device_str}.")
   end
 
   defp log_trigger_error(error_type, reason, %{realm: realm, trigger_name: name}, duration, device_str) do

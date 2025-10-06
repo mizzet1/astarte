@@ -79,7 +79,7 @@ defmodule Astarte.RealmManagement.Config do
             strategy: Elixir.Cluster.Strategy.Kubernetes,
             config: [
               mode: :ip,
-              kubernetes_node_basename: :astarte_realmmanagement,
+              kubernetes_node_basename: "astarte_data_updater_plant",
               kubernetes_selector: dup_clustering_kubernetes_selector!(),
               kubernetes_namespace: clustering_kubernetes_namespace!(),
               polling_interval: 10_000
