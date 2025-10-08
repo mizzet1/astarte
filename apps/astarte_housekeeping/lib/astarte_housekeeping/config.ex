@@ -34,7 +34,7 @@ defmodule Astarte.Housekeeping.Config do
   app_env :disable_authentication, :astarte_housekeeping, :disable_authentication,
     os_env: "HOUSEKEEPING_API_DISABLE_AUTHENTICATION",
     type: :boolean,
-    default: false
+    default: true
 
   @envdoc "The JWT public key."
   app_env :jwt_public_key_pem, :astarte_housekeeping, :jwt_public_key_pem,

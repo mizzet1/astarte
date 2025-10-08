@@ -30,7 +30,7 @@ defmodule Astarte.RealmManagement.Config do
   app_env :disable_authentication, :astarte_realm_management, :disable_authentication,
     os_env: "REALM_MANAGEMENT_API_DISABLE_AUTHENTICATION",
     type: :boolean,
-    default: false
+    default: true
 
   @doc """
   Returns true if the authentication is disabled.

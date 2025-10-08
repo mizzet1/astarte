@@ -71,7 +71,7 @@ defmodule Astarte.AppEngine.API.Config do
   app_env :disable_authentication, :astarte_appengine_api, :disable_authentication,
     os_env: "APPENGINE_API_DISABLE_AUTHENTICATION",
     type: :boolean,
-    default: false
+    default: true
 
   @envdoc "Whether to install Swagger UI and expose API documentation on /swagger."
   app_env :swagger_ui, :astarte_appengine_api, :swagger_ui,
