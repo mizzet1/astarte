@@ -56,7 +56,7 @@ defmodule Astarte.PairingWeb.Router do
            :verify_credentials
     end
   end
-
+  
   scope "/version", Astarte.PairingWeb do
     get "/", VersionController, :show
   end
