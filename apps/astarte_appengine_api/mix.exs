@@ -91,7 +91,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:cyanide, "~> 2.0"},
       {:guardian, "~> 2.3.2"},
       # Required by :phoenix_swagger, otherwise it fails finding ex_json_schema.app
-      {:ex_json_schema, "~> 0.7"},
+      {:ex_json_schema, "~> 0.11"},
       {:phoenix_swagger, "~> 0.8"},
       {:xandra, "~> 0.13"},
       {:pretty_log, "~> 0.1"},
