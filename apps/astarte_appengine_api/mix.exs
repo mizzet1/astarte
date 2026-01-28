@@ -110,7 +110,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       # See also: https://github.com/deadtrickster/ssl_verify_fun.erl/pull/27
       {:ssl_verify_fun, "~> 1.1.0", manager: :rebar3, override: true},
       # Test section
-      {:excoveralls, "~> 0.15", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 0.5", only: :test},
       {:stream_data, "~> 0.5", only: :test}
     ]

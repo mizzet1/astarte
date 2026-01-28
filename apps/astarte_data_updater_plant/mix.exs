@@ -79,7 +79,7 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
       {:amqp, "~> 3.3"},
       {:castore, "~> 1.0.0"},
       {:cyanide, "~> 2.0"},
-      {:excoveralls, "~> 0.15", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:mississippi, github: "secomind/mississippi"},
       {:mox, "~> 1.0", only: :test},
       # hex.pm package and esl/ex_rabbit_pool do not support amqp version 2.1.
