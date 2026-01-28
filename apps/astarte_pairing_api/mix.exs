@@ -94,7 +94,7 @@ defmodule Astarte.Pairing.API.Mixfile do
       {:dialyxir, "~> 1.0", only: [:dev, :ci], runtime: false},
       {:skogsra, "~> 2.2"},
       {:cors_plug, "~> 2.0"},
-      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.4"},
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
       {:observer_cli, "~> 1.5"},

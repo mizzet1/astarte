@@ -93,7 +93,7 @@ defmodule Astarte.RealmManagement.API.Mixfile do
       {:plug_logger_with_meta, "~> 0.1"},
       {:skogsra, "~> 2.2"},
       {:observer_cli, "~> 1.5"},
-      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.4"},
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
       {:dialyxir, "~> 1.0", only: [:dev, :ci], runtime: false},

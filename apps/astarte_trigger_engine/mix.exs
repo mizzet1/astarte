@@ -85,7 +85,7 @@ defmodule Astarte.TriggerEngine.Mixfile do
       {:ex_rabbit_pool, github: "leductam/ex_rabbit_pool"},
       {:plug_cowboy, "~> 2.1"},
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.4"},
       {:mox, "~> 0.5", only: :test},
       {:pretty_log, "~> 0.1"},
