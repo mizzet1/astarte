@@ -80,7 +80,7 @@ defmodule Astarte.Pairing.API.Mixfile do
   defp deps do
     [
       {:phoenix, "~> 1.7"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 0.26"},
       {:plug_cowboy, "~> 2.2"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},

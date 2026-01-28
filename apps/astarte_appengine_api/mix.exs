@@ -83,7 +83,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:phoenix, "~> 1.7"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 0.26"},
       {:plug_cowboy, "~> 2.1"},
       {:jason, "~> 1.2"},
       {:cors_plug, "~> 2.0"},
