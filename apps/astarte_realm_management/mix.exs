@@ -83,7 +83,7 @@ defmodule Astarte.RealmManagement.Mixfile do
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
       {:telemetry_metrics, "~> 0.4"},
       {:telemetry_poller, "~> 0.4"},
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64
       {:re2, "~> 1.9.8", override: true},

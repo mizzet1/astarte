@@ -93,7 +93,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       # Required by :phoenix_swagger, otherwise it fails finding ex_json_schema.app
       {:ex_json_schema, "~> 0.7"},
       {:phoenix_swagger, "~> 0.8"},
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:pretty_log, "~> 0.1"},
       {:plug_logger_with_meta, "~> 0.1"},
       {:telemetry, "~> 0.4"},

@@ -90,7 +90,7 @@ defmodule Astarte.TriggerEngine.Mixfile do
       {:mox, "~> 0.5", only: :test},
       {:pretty_log, "~> 0.1"},
       {:telemetry, "~> 0.4"},
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:skogsra, "~> 2.2"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64

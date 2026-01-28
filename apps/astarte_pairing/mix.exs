@@ -83,7 +83,7 @@ defmodule Astarte.Pairing.Mixfile do
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
       {:telemetry_metrics, "~> 0.4"},
       {:telemetry_poller, "~> 0.4"},
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:pretty_log, "~> 0.1"},
       {:skogsra, "~> 2.2"},
       {:telemetry, "~> 0.4"},
