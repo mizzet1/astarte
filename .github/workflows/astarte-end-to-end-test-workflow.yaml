@@ -30,7 +30,7 @@ jobs:
     name: End-to-end Test
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - name: Initialize docker compose files
       run: docker run -v $(pwd)/compose:/compose astarte/docker-compose-initializer
     - name: Build Astarte containers

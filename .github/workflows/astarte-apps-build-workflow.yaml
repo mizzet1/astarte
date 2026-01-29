@@ -43,7 +43,7 @@ jobs:
     env:
       MIX_ENV: ci
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - uses: actions/cache@v1
       with:
         path: apps/${{ matrix.app }}/deps
@@ -122,7 +122,7 @@ jobs:
       CASSANDRA_NODES: localhost
       RABBITMQ_HOST: localhost
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v6
     - uses: actions/cache@v1
       with:
         path: apps/${{ matrix.app }}/deps
