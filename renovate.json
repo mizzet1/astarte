@@ -1,0 +1,68 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "baseBranches": [
+    "test-renovate"
+  ],
+  "packageRules": [
+    {
+      "description": "Rule for Astarte Data Updater Plant",
+      "matchPaths": ["apps/astarte_data_updater_plant/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Data Updater Plant non-major",
+      "groupSlug": "data-updater-updates"
+    },
+    {
+      "description": "Rule for Astarte AppEngine API",
+      "matchPaths": ["apps/astarte_appengine_api/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "AppEngine API non-major",
+      "groupSlug": "appengine-updates"
+    },
+    {
+      "description": "Rule for Astarte Housekeeping",
+      "matchPaths": ["apps/astarte_housekeeping/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Housekeeping non-major",
+      "groupSlug": "housekeeping-updates"
+    },
+    {
+      "description": "Rule for Astarte Pairing",
+      "matchPaths": ["apps/astarte_pairing/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Pairing non-major",
+      "groupSlug": "pairing-updates"
+    },
+    {
+      "description": "Rule for Astarte Realm Management",
+      "matchPaths": ["apps/astarte_realm_management/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Realm Management non-major",
+      "groupSlug": "realm-mgmt-updates"
+    },
+    {
+      "description": "Rule for Astarte Trigger Engine",
+      "matchPaths": ["apps/astarte_trigger_engine/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Trigger Engine non-major",
+      "groupSlug": "trigger-engine-updates"
+    },
+    {
+      "description": "Group CI/Action updates separately",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "CI non-major updates",
+      "groupSlug": "ci-updates"
+    },
+    {
+      "description": "Catch-all for Shared Libraries or Root dependencies not in the apps folder",
+      "matchManagers": ["mix"],
+      "matchPaths": ["!apps/**"],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "Shared/Root non-major updates",
+      "groupSlug": "shared-updates"
+    }
+  ]
+}
