@@ -24,6 +24,8 @@ config :logger, :console,
     :tag
   ]
 
+config :logger, level: :info
+
 config :astarte_appengine_api,
        :data_updater_plant_rpc_client,
        Astarte.AppEngine.API.RPC.DataUpdaterPlant.ClientMock

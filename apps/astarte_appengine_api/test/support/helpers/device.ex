@@ -32,6 +32,8 @@ defmodule Astarte.Helpers.Device do
   import ExUnit.CaptureLog
   import StreamData
 
+  require Logger
+
   @fallible_value_type [
     :integer,
     :longinteger,
@@ -186,51 +188,67 @@ defmodule Astarte.Helpers.Device do
     end)
   end
 
-  def valid_result?(result, interface, value)
-      when interface.aggregation == :individual and is_map(value) do
-    similar?(result, value)
-  end
+def valid_result?(result, interface, value)
+    when interface.aggregation == :individual and is_list(result) do
+  # Check if the list itself matches the value (e.g., for arrays)
+  # before trying to match the value against elements of the list.
+  similar?(result, value) or Enum.any?(result, &valid_result?(&1, interface, value))
+end
 
-  def valid_result?(result, _interface, value) when is_map(result) and is_map(value) do
-    Map.intersect(value, result)
-    |> Enum.all?(fn {key, result_value} -> similar?(result_value, Map.fetch!(value, key)) end)
-  end
+def valid_result?(result, interface, value)
+    when interface.aggregation == :individual and is_map(value) and not is_struct(value, DateTime) and not is_list(result) do
+  similar?(result, value)
+end
 
-  def valid_result?(result, interface, value) when is_list(result) do
-    similar?(result, value) or Enum.any?(result, &valid_result?(&1, interface, value))
-  end
+def valid_result?(result, _interface, value) when is_map(result) and is_map(value) and not is_struct(value, DateTime) do
+  Map.intersect(value, result)
+  |> Enum.all?(fn {key, result_value} -> similar?(result_value, Map.fetch!(value, key)) end)
+end
 
-  def valid_result?(result, _interface, value) do
-    similar?(result, value)
-  end
+def valid_result?(result, interface, value) when is_list(result) do
+  similar?(result, value) or Enum.any?(result, &valid_result?(&1, interface, value))
+end
 
-  defp similar?(nil = _result, [] = _value), do: true
-  defp similar?(%{} = _result, nil = _value), do: true
-  defp similar?("" = _result, nil = _value), do: true
-  defp similar?(%{"" => nil}, nil), do: true
-  defp similar?(%{"" => nil}, []), do: true
+def valid_result?(result, _interface, value) do
+  similar?(result, value)
+end
 
-  defp similar?(%DateTime{} = datetime, timestamp)
-       when is_integer(timestamp),
-       do: DateTime.to_unix(datetime) == timestamp
+defp similar?(nil, []), do: true
+defp similar?(%{}, nil), do: true
+defp similar?("", nil), do: true
+defp similar?(%{"" => nil}, nil), do: true
+defp similar?(%{"" => nil}, []), do: true
 
-  defp similar?(%{"timestamp" => _, "value" => result}, value), do: similar?(result, value)
+defp similar?(%DateTime{} = datetime, timestamp) when is_integer(timestamp) do
+  DateTime.to_unix(datetime) == timestamp
+end
 
-  defp similar?(result, value) when is_binary(result) and is_number(value),
-    do: result == to_string(value)
+defp similar?(%{"timestamp" => _, "value" => result}, value) do
+  similar?(result, value)
+end
 
-  defp similar?(result, value) when is_list(result) and is_list(value) do
+defp similar?(%{"reception_timestamp" => _, "value" => result}, value) do
+  similar?(result, value)
+end
+
+defp similar?(result, value) when is_binary(result) and is_number(value) do
+  result == to_string(value)
+end
+
+defp similar?(result, value) when is_list(result) and is_list(value) do
+  if length(result) == length(value) do
     Enum.zip(result, value)
-    |> Enum.map(fn {result, value} -> similar?(result, value) end)
-    |> Enum.all?()
+    |> Enum.all?(fn {r, v} -> similar?(r, v) end)
+  else
+    false
   end
+end
 
-  defp similar?(result, value) when is_binary(result) and is_struct(value, DateTime),
-    do: result == DateTime.to_iso8601(value)
+defp similar?(result, value) when is_binary(result) and is_struct(value, DateTime) do
+  result == DateTime.to_iso8601(value)
+end
 
-  defp similar?(%{"reception_timestamp" => _, "value" => v}, value), do: similar?(v, value)
-
-  defp similar?(result, value), do: result == value
+defp similar?(result, value), do: result == value
 
   def expected_published_value!(value_type, value) do
     {:ok, value} = InterfaceValue.cast_value(value_type, value)
