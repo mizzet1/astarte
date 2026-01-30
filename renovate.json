@@ -1,9 +1,37 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": [
-    "config:recommended"
+  "extends": ["config:recommended"],
+  "baseBranches": ["master"],
+  "description": "Renovate configuration for Astarte - Elixir microservices project",
+  "packageRules": [
+    {
+      "description": "Elixir dependencies for microservices",
+      "matchFileNames": ["apps/**/mix.exs"],
+      "matchManagers": ["mix"],
+      "groupName": "Elixir microservices dependencies",
+      "schedule": ["before 10am on monday"],
+      "labels": ["dependencies", "elixir", "microservices"]
+    },
+    {
+      "description": "GitHub Actions versions",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "schedule": ["before 10am on the first day of the month"],
+      "labels": ["dependencies", "ci", "github-actions"]
+    }
   ],
-  "baseBranches": [
-    "master"
-  ]
+  "mix": {
+    "enabled": true
+  },
+  "github-actions": {
+    "enabled": true
+  },
+  "prConcurrentLimit": 3,
+  "prHourlyLimit": 1,
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  "labels": ["renovate"],
+  "timezone": "UTC"
 }
