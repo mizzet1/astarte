@@ -3,66 +3,94 @@
   "extends": [
     "config:recommended"
   ],
-  "baseBranches": [
-    "test-renovate"
-  ],
+  "baseBranches": ["test-renovate", "release-1.3", "master"],
+  "description": "Renovate configuration for Astarte - Elixir microservices project",
+  
   "packageRules": [
     {
-      "description": "Rule for Astarte Data Updater Plant",
-      "matchPaths": ["apps/astarte_data_updater_plant/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "Data Updater Plant non-major",
-      "groupSlug": "data-updater-updates"
-    },
-    {
-      "description": "Rule for Astarte AppEngine API",
-      "matchPaths": ["apps/astarte_appengine_api/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "AppEngine API non-major",
-      "groupSlug": "appengine-updates"
-    },
-    {
-      "description": "Rule for Astarte Housekeeping",
-      "matchPaths": ["apps/astarte_housekeeping/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "Housekeeping non-major",
-      "groupSlug": "housekeeping-updates"
-    },
-    {
-      "description": "Rule for Astarte Pairing",
-      "matchPaths": ["apps/astarte_pairing/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "Pairing non-major",
-      "groupSlug": "pairing-updates"
-    },
-    {
-      "description": "Rule for Astarte Realm Management",
-      "matchPaths": ["apps/astarte_realm_management/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "Realm Management non-major",
-      "groupSlug": "realm-mgmt-updates"
-    },
-    {
-      "description": "Rule for Astarte Trigger Engine",
-      "matchPaths": ["apps/astarte_trigger_engine/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "Trigger Engine non-major",
-      "groupSlug": "trigger-engine-updates"
-    },
-    {
-      "description": "Group CI/Action updates separately",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "CI non-major updates",
-      "groupSlug": "ci-updates"
-    },
-    {
-      "description": "Catch-all for Shared Libraries or Root dependencies not in the apps folder",
+      "description": "Elixir dependencies for Astarte Services",
+      "matchFileNames": ["apps/**/mix.exs"],
       "matchManagers": ["mix"],
-      "matchPaths": ["!apps/**"],
-      "matchUpdateTypes": ["minor", "patch", "digest"],
-      "groupName": "Shared/Root non-major updates",
-      "groupSlug": "shared-updates"
+      "groupName": "Elixir microservices dependencies",
+      "schedule": ["before 10am on monday"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir", "microservices"]
+    },
+    {
+      "description": "Elixir dependencies for Astarte Tools",
+      "matchFileNames": ["mix.exs", "tools/**/mix.exs"],
+      "matchManagers": ["mix"],
+      "matchDepTypes": ["dependencies"],
+      "groupName": "Elixir shared libraries",
+      "schedule": ["before 10am on monday"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir", "shared-libs"]
+    },
+    {
+      "description": "Elixir dependencies for Astarte Libraries",
+      "matchFileNames": ["mix.exs", "libs/**/mix.exs"],
+      "matchManagers": ["mix"],
+      "matchDepTypes": ["dependencies"],
+      "groupName": "Elixir shared libraries",
+      "schedule": ["before 10am on monday"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir", "shared-libs"]
+    },
+    {
+      "description": "GitHub Actions versions",
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "schedule": ["before 10am on the first day of the month"],
+      "automerge": false,
+      "labels": ["dependencies", "ci", "github-actions"],
+      "pinDigests": true
+    },
+    {
+      "description": "Elixir version updates",
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["hexpm/elixir"],
+      "groupName": "Elixir version",
+      "schedule": ["before 10am on the first day of the month"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir-version"]
     }
-  ]
+  ],
+  
+  "mix": {
+    "enabled": true
+  },
+  
+  "github-actions": {
+    "enabled": true
+  },
+  
+  "prConcurrentLimit": 5,
+  "prCreation": "immediate",
+  "prHourlyLimit": 2,
+  
+  "semanticCommits": "enabled",
+  "commitMessagePrefix": "[Renovate]",
+  
+  "assignees": [],
+  "reviewers": [],
+  
+  "vulnerabilityAlerts": {
+    "enabled": true,
+    "labels": ["security"]
+  },
+  
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 10am on the first day of the month"]
+  },
+  
+  "labels": ["renovate"],
+  
+  "branchPrefix": "renovate/",
+  
+  "ignoreDeps": [],
+  
+  "rangeStrategy": "bump",
+  
+  "timezone": "UTC"
 }
