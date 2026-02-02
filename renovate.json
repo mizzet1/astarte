@@ -5,7 +5,6 @@
   "description": "Fully automatic Renovate configuration for Astarte",
   
   "dependencyDashboardApproval": false,
-  "prCreation": "immediate",
   
   "packageRules": [
     {
@@ -14,7 +13,6 @@
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Elixir non-breaking updates",
       "schedule": ["before 10am on monday"],
-      "rangeStrategy": "update-lockfile",
       "postUpdateOptions": ["mixLockUpdate"],
       "automerge": false,
       "labels": ["dependencies", "elixir"]
@@ -25,7 +23,6 @@
       "matchUpdateTypes": ["major"],
       "groupName": "Elixir breaking updates",
       "schedule": ["before 10am on the first day of the month"],
-      "rangeStrategy": "update-lockfile",
       "postUpdateOptions": ["mixLockUpdate"],
       "automerge": false,
       "labels": ["dependencies", "elixir", "major"]
