@@ -83,21 +83,21 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:phoenix, "~> 1.7"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 0.26"},
       {:plug_cowboy, "~> 2.1"},
       {:jason, "~> 1.2"},
       {:cors_plug, "~> 2.0"},
       {:ex_lttb, "~> 0.3"},
       {:cyanide, "~> 2.0"},
-      {:guardian, "~> 2.3.2"},
+      {:guardian, "~> 2.4.0"},
       # Required by :phoenix_swagger, otherwise it fails finding ex_json_schema.app
-      {:ex_json_schema, "~> 0.7"},
+      {:ex_json_schema, "~> 0.11"},
       {:phoenix_swagger, "~> 0.8"},
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:pretty_log, "~> 0.1"},
       {:plug_logger_with_meta, "~> 0.1"},
       {:telemetry, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
+      {:telemetry_metrics, "~> 0.6"},
       {:telemetry_poller, "~> 0.4"},
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
       {:skogsra, "~> 2.2"},
@@ -110,7 +110,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       # See also: https://github.com/deadtrickster/ssl_verify_fun.erl/pull/27
       {:ssl_verify_fun, "~> 1.1.0", manager: :rebar3, override: true},
       # Test section
-      {:excoveralls, "~> 0.15", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:mox, "~> 0.5", only: :test},
       {:stream_data, "~> 0.5", only: :test}
     ]
