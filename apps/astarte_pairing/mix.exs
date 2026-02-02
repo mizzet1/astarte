@@ -77,16 +77,16 @@ defmodule Astarte.Pairing.Mixfile do
   defp deps do
     [
       {:cfxxl, github: "ispirata/cfxxl"},
-      {:bcrypt_elixir, "~> 2.2"},
+      {:bcrypt_elixir, "~> 3.0"},
       {:excoveralls, "~> 0.15", only: :test},
       {:plug_cowboy, "~> 2.1"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
       {:xandra, "~> 0.13"},
       {:pretty_log, "~> 0.1"},
       {:skogsra, "~> 2.2"},
-      {:telemetry, "~> 0.4"},
+      {:telemetry, "~> 1.0"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64
       {:re2, "~> 1.9.8", override: true},

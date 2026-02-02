@@ -73,23 +73,23 @@ defmodule Astarte.TriggerEngine.Mixfile do
 
   defp deps do
     [
-      {:amqp, "~> 3.3"},
+      {:amqp, "~> 4.0"},
       {:bbmustache, "~> 1.9"},
       {:castore, "~> 1.0.0"},
       {:cyanide, "~> 2.0"},
-      {:httpoison, "~> 1.6"},
+      {:httpoison, "~> 2.0"},
       {:jason, "~> 1.2"},
       {:excoveralls, "~> 0.15", only: :test},
       # hex.pm package and esl/ex_rabbit_pool do not support amqp version 2.1.
       # This fork is supporting amqp ~> 2.0 and also ~> 3.0.
       {:ex_rabbit_pool, github: "leductam/ex_rabbit_pool"},
       {:plug_cowboy, "~> 2.1"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
-      {:mox, "~> 0.5", only: :test},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:mox, "~> 1.0", only: :test},
       {:pretty_log, "~> 0.1"},
-      {:telemetry, "~> 0.4"},
+      {:telemetry, "~> 1.0"},
       {:xandra, "~> 0.13"},
       {:skogsra, "~> 2.2"},
       {:observer_cli, "~> 1.5"},

@@ -80,9 +80,9 @@ defmodule Astarte.RealmManagement.Mixfile do
       {:plug_cowboy, "~> 2.1"},
       {:jason, "~> 1.2"},
       {:skogsra, "~> 2.2"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
       {:xandra, "~> 0.13"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64

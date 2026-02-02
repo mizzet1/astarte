@@ -85,9 +85,9 @@ defmodule Astarte.Housekeeping.Mixfile do
       {:plug_cowboy, "~> 2.1"},
       {:skogsra, "~> 2.2"},
       {:pretty_log, "~> 0.1"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64
       {:re2, "~> 1.9.8", override: true},
