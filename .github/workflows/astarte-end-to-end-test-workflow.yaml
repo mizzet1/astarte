@@ -30,7 +30,7 @@ jobs:
     name: End-to-end Test
     runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
     - name: Initialize docker compose files
       run: docker run -v $(pwd)/compose:/compose astarte/docker-compose-initializer
     - name: Build Astarte containers
@@ -70,15 +70,15 @@ jobs:
       run: |
         JWT=$(./astartectl utils gen-jwt appengine channels -k test_private.pem)
         echo "E2E_JWT=$JWT" >> $GITHUB_ENV
-    - uses: actions/cache@v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: tools/astarte_e2e/deps
         key: deps-${{ env.otp_version }}-${{ env.elixir_version }}-${{ hashFiles(format('{0}{1}{2}', github.workspace, '/tools/astarte_e2e', '/mix.lock')) }}
-    - uses: actions/cache@v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: tools/astarte_e2e/_build
         key: build-${{ env.otp_version }}-${{ env.elixir_version }}
-    - uses: erlef/setup-beam@v1.15
+    - uses: erlef/setup-beam@e6d7c94229049569db56a7ad5a540c051a010af9 # v1.20
       with:
         otp-version: ${{ env.otp_version }}
         elixir-version: ${{ env.elixir_version }}
