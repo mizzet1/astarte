@@ -2,13 +2,14 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "baseBranches": ["master"],
-  "description": "Renovate configuration with lockfile and GitHub Actions fixes",
+  "description": "Fully automatic Renovate configuration for Astarte",
   
   "dependencyDashboardApproval": false,
+  "prCreation": "immediate",
   
   "packageRules": [
     {
-      "description": "Elixir non-breaking updates with lockfile maintenance",
+      "description": "Elixir non-breaking updates - automatic weekly",
       "matchManagers": ["mix"],
       "matchUpdateTypes": ["minor", "patch"],
       "groupName": "Elixir non-breaking updates",
@@ -19,7 +20,7 @@
       "labels": ["dependencies", "elixir"]
     },
     {
-      "description": "Elixir breaking updates with lockfile maintenance",
+      "description": "Elixir breaking updates - automatic monthly",
       "matchManagers": ["mix"],
       "matchUpdateTypes": ["major"],
       "groupName": "Elixir breaking updates",
@@ -30,7 +31,7 @@
       "labels": ["dependencies", "elixir", "major"]
     },
     {
-      "description": "GitHub Actions with digest pinning",
+      "description": "GitHub Actions - automatic monthly",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
       "schedule": ["before 10am on the first day of the month"],
