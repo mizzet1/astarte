@@ -2,36 +2,68 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["config:recommended"],
   "baseBranches": ["master"],
-  "description": "Renovate configuration for Astarte - Elixir microservices project",
+  "description": "Renovate configuration with lockfile and GitHub Actions fixes",
+  
+  "dependencyDashboardApproval": false,
+  
   "packageRules": [
     {
-      "description": "Elixir dependencies for microservices",
-      "matchFileNames": ["apps/**/mix.exs"],
+      "description": "Elixir non-breaking updates with lockfile maintenance",
       "matchManagers": ["mix"],
-      "groupName": "Elixir microservices dependencies",
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "Elixir non-breaking updates",
       "schedule": ["before 10am on monday"],
-      "labels": ["dependencies", "elixir", "microservices"]
+      "rangeStrategy": "update-lockfile",
+      "postUpdateOptions": ["mixLockUpdate"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir"]
     },
     {
-      "description": "GitHub Actions versions",
+      "description": "Elixir breaking updates with lockfile maintenance",
+      "matchManagers": ["mix"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "Elixir breaking updates",
+      "schedule": ["before 10am on the first day of the month"],
+      "rangeStrategy": "update-lockfile",
+      "postUpdateOptions": ["mixLockUpdate"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir", "major"]
+    },
+    {
+      "description": "GitHub Actions with digest pinning",
       "matchManagers": ["github-actions"],
       "groupName": "GitHub Actions",
       "schedule": ["before 10am on the first day of the month"],
-      "labels": ["dependencies", "ci", "github-actions"]
+      "pinDigests": true,
+      "automerge": false,
+      "labels": ["dependencies", "ci"]
     }
   ],
+  
   "mix": {
     "enabled": true
   },
+  
   "github-actions": {
     "enabled": true
   },
+  
+  "lockFileMaintenance": {
+    "enabled": true,
+    "schedule": ["before 10am on the first day of the month"]
+  },
+  
   "prConcurrentLimit": 3,
   "prHourlyLimit": 1,
+  
   "vulnerabilityAlerts": {
     "enabled": true,
     "labels": ["security"]
   },
+  
+  "separateMajorMinor": true,
+  "separateMinorPatch": false,
+  
   "labels": ["renovate"],
   "timezone": "UTC"
 }
