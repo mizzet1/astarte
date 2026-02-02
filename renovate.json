@@ -1,70 +1,61 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "baseBranches": ["master"],
-  "description": "Fully automatic Renovate configuration for Astarte",
-  
+
+  "description": "Renovate configuration for Astarte",
+
+  "extends": [
+    "config:recommended",
+    ":maintainLockFilesWeekly",
+    ":rebaseStalePrs",
+    ":semanticCommits",
+    ":semanticCommitScope(deps)",
+    "helpers:pinGitHubActionDigests"
+  ],
+
+  "dependencyDashboard": true,
   "dependencyDashboardApproval": false,
+
   "prCreation": "immediate",
-  
+  "rebaseWhen": "behind-base-branch",
+
+  "platformAutomerge": true,
+  "automergeType": "branch",
+
   "packageRules": [
     {
-      "description": "Elixir non-breaking updates - automatic weekly",
+      "description": "Elixir patch and minor updates - automerge",
       "matchManagers": ["mix"],
-      "matchUpdateTypes": ["minor", "patch"],
-      "groupName": "Elixir non-breaking updates",
-      "schedule": ["before 10am on monday"],
-      "rangeStrategy": "update-lockfile",
-      "postUpdateOptions": ["mixLockUpdate"],
-      "automerge": false,
-      "labels": ["dependencies", "elixir"]
+      "matchUpdateTypes": ["patch", "minor"],
+      "automerge": true,
+      "labels": ["dependencies", "elixir", "automerge"]
     },
     {
-      "description": "Elixir breaking updates - automatic monthly",
+      "description": "Elixir major updates - manual, monthly",
       "matchManagers": ["mix"],
       "matchUpdateTypes": ["major"],
-      "groupName": "Elixir breaking updates",
       "schedule": ["before 10am on the first day of the month"],
-      "rangeStrategy": "update-lockfile",
-      "postUpdateOptions": ["mixLockUpdate"],
       "automerge": false,
       "labels": ["dependencies", "elixir", "major"]
     },
     {
-      "description": "GitHub Actions - automatic monthly",
+      "description": "GitHub Actions updates",
       "matchManagers": ["github-actions"],
-      "groupName": "GitHub Actions",
-      "schedule": ["before 10am on the first day of the month"],
-      "pinDigests": true,
-      "automerge": false,
-      "labels": ["dependencies", "ci"]
+      "automerge": true,
+      "labels": ["dependencies", "ci", "automerge"]
     }
   ],
-  
+
   "mix": {
     "enabled": true
   },
-  
+
   "github-actions": {
     "enabled": true
   },
-  
-  "lockFileMaintenance": {
-    "enabled": true,
-    "schedule": ["before 10am on the first day of the month"]
-  },
-  
-  "prConcurrentLimit": 3,
-  "prHourlyLimit": 1,
-  
-  "vulnerabilityAlerts": {
-    "enabled": true,
-    "labels": ["security"]
-  },
-  
+
   "separateMajorMinor": true,
   "separateMinorPatch": false,
-  
+
   "labels": ["renovate"],
   "timezone": "UTC"
 }
