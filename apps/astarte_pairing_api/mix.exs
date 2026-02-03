@@ -80,7 +80,7 @@ defmodule Astarte.Pairing.API.Mixfile do
   defp deps do
     [
       {:phoenix, "~> 1.7"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 1.0"},
       {:plug_cowboy, "~> 2.2"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},
@@ -88,15 +88,15 @@ defmodule Astarte.Pairing.API.Mixfile do
       {:guardian, "~> 2.3.2"},
       {:remote_ip, "~> 1.0"},
       {:excoveralls, "~> 0.15", only: :test},
-      {:mox, "~> 0.5", only: :test},
+      {:mox, "~> 1.0", only: :test},
       {:pretty_log, "~> 0.1"},
       {:plug_logger_with_meta, "~> 0.1"},
       {:dialyxir, "~> 1.0", only: [:dev, :ci], runtime: false},
       {:skogsra, "~> 2.2"},
-      {:cors_plug, "~> 2.0"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
+      {:cors_plug, "~> 3.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
       {:observer_cli, "~> 1.5"},
       # Workaround for Elixir 1.15 / ssl_verify_fun issue
       # See also: https://github.com/deadtrickster/ssl_verify_fun.erl/pull/27

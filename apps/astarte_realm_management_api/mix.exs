@@ -82,10 +82,10 @@ defmodule Astarte.RealmManagement.API.Mixfile do
     [
       {:phoenix, "~> 1.7"},
       {:plug_cowboy, "~> 2.1"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 1.0"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},
-      {:cors_plug, "~> 2.0"},
+      {:cors_plug, "~> 3.0"},
       {:jason, "~> 1.2"},
       {:guardian, "~> 2.3"},
       {:excoveralls, "~> 0.15", only: :test},
@@ -93,9 +93,9 @@ defmodule Astarte.RealmManagement.API.Mixfile do
       {:plug_logger_with_meta, "~> 0.1"},
       {:skogsra, "~> 2.2"},
       {:observer_cli, "~> 1.5"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
       {:dialyxir, "~> 1.0", only: [:dev, :ci], runtime: false},
       # Workaround for Elixir 1.15 / ssl_verify_fun issue
       # See also: https://github.com/deadtrickster/ssl_verify_fun.erl/pull/27
