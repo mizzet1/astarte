@@ -1,135 +1,121 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for Astarte",
+
   "extends": [
     "config:recommended",
     ":rebaseStalePrs",
     ":semanticCommits",
     ":semanticCommitScope(deps)",
-    ":maintainLockFilesWeekly",
     "helpers:pinGitHubActionDigests"
   ],
+
   "configMigration": true,
+
   "dependencyDashboard": true,
   "dependencyDashboardApproval": false,
+
   "prCreation": "not-pending",
   "rebaseWhen": "behind-base-branch",
+
   "platformAutomerge": true,
   "automergeType": "branch",
+
   "rangeStrategy": "update-lockfile",
+
   "packageRules": [
     {
-      "description": "Automerge safe updates (patch, minor, digest, lockfile)",
-      "matchUpdateTypes": [
-        "patch",
-        "minor",
-        "digest",
-        "lockFileMaintenance"
-      ],
+      "description": "Automerge safe updates globally",
+      "matchUpdateTypes": ["patch", "minor", "digest"],
       "automerge": true,
-      "labels": [
-        "dependencies",
-        "automerge"
-      ]
+      "labels": ["dependencies", "automerge"]
     },
+
     {
-      "description": "Elixir patch and minor updates - grouped and automerged",
-      "matchManagers": [
-        "mix"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ],
-      "groupName": "Elixir non-breaking updates",
-      "postUpdateOptions": [
-        "mixLockUpdate"
-      ],
+      "description": "Elixir background components (apps/**) non-breaking",
+      "matchManagers": ["mix"],
+      "matchPaths": ["apps/**"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Elixir background components",
+      "postUpdateOptions": ["mixLockUpdate"],
       "minimumReleaseAge": "3 days",
-      "labels": [
-        "dependencies",
-        "elixir",
-        "automerge"
-      ]
+      "automerge": true,
+      "labels": ["dependencies", "elixir", "background", "automerge"]
     },
+
     {
-      "description": "Elixir major updates - grouped, manual, monthly",
-      "matchManagers": [
-        "mix"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "groupName": "Elixir breaking updates",
-      "postUpdateOptions": [
-        "mixLockUpdate"
-      ],
-      "schedule": [
-        "before 10am on the first day of the month"
-      ],
+      "description": "Elixir background components (apps/**) major updates",
+      "matchManagers": ["mix"],
+      "matchPaths": ["apps/**"],
+      "matchUpdateTypes": ["major"],
+      "groupName": "Elixir background components (major)",
       "dependencyDashboardApproval": true,
-      "minimumReleaseAge": "3 days",
       "automerge": false,
-      "labels": [
-        "dependencies",
-        "elixir",
-        "major"
-      ]
+      "labels": ["dependencies", "elixir", "major"]
     },
+
     {
-      "description": "GitHub Actions non-breaking updates - grouped and automerged",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchUpdateTypes": [
-        "patch",
-        "minor",
-        "digest"
-      ],
+      "description": "Elixir tools",
+      "matchManagers": ["mix"],
+      "matchPaths": ["tools/**"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Elixir tools",
+      "postUpdateOptions": ["mixLockUpdate"],
+      "minimumReleaseAge": "3 days",
+      "automerge": true,
+      "labels": ["dependencies", "elixir", "tools", "automerge"]
+    },
+
+    {
+      "description": "Elixir docs",
+      "matchManagers": ["mix"],
+      "matchPaths": ["doc/**"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Elixir docs",
+      "postUpdateOptions": ["mixLockUpdate"],
+      "automerge": false,
+      "labels": ["dependencies", "elixir", "docs"]
+    },
+
+    {
+      "description": "GitHub Actions non-breaking updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["patch", "minor", "digest"],
       "groupName": "GitHub Actions non-breaking",
       "automerge": true,
-      "labels": [
-        "dependencies",
-        "ci",
-        "automerge"
-      ]
+      "labels": ["dependencies", "ci", "automerge"]
     },
+
     {
-      "description": "GitHub Actions major updates - grouped, manual",
-      "matchManagers": [
-        "github-actions"
-      ],
-      "matchUpdateTypes": [
-        "major"
-      ],
+      "description": "GitHub Actions major updates",
+      "matchManagers": ["github-actions"],
+      "matchUpdateTypes": ["major"],
       "groupName": "GitHub Actions breaking",
       "dependencyDashboardApproval": true,
       "automerge": false,
-      "labels": [
-        "dependencies",
-        "ci",
-        "major"
-      ]
+      "labels": ["dependencies", "ci", "major"]
     }
   ],
+
   "mix": {
     "enabled": true
   },
+
   "github-actions": {
     "enabled": true
   },
+
   "separateMajorMinor": true,
   "separateMinorPatch": false,
+
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
+
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": [
-      "security"
-    ]
+    "labels": ["security"]
   },
-  "labels": [
-    "renovate"
-  ],
+
+  "labels": ["renovate"],
   "timezone": "UTC"
 }
