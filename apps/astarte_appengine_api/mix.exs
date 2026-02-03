@@ -83,10 +83,10 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:phoenix, "~> 1.7"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 1.0"},
       {:plug_cowboy, "~> 2.1"},
       {:jason, "~> 1.2"},
-      {:cors_plug, "~> 2.0"},
+      {:cors_plug, "~> 3.0"},
       {:ex_lttb, "~> 0.3"},
       {:cyanide, "~> 2.0"},
       {:guardian, "~> 2.3.2"},
@@ -96,10 +96,10 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:xandra, "~> 0.13"},
       {:pretty_log, "~> 0.1"},
       {:plug_logger_with_meta, "~> 0.1"},
-      {:telemetry, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
+      {:telemetry, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
       {:skogsra, "~> 2.2"},
       {:castore, "~> 1.0.0"},
       {:observer_cli, "~> 1.5"},
@@ -111,8 +111,8 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:ssl_verify_fun, "~> 1.1.0", manager: :rebar3, override: true},
       # Test section
       {:excoveralls, "~> 0.15", only: :test},
-      {:mox, "~> 0.5", only: :test},
-      {:stream_data, "~> 0.5", only: :test}
+      {:mox, "~> 1.0", only: :test},
+      {:stream_data, "~> 1.0", only: :test}
     ]
   end
 end
