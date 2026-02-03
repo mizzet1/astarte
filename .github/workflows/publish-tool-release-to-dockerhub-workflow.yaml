@@ -27,7 +27,7 @@ jobs:
         - astarte_import
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Log in to Docker Hub
         uses: docker/login-action@3227f5311cb93ffd14d13e65d8cc400d30f4dd8a
