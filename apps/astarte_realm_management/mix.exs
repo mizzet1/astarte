@@ -75,15 +75,15 @@ defmodule Astarte.RealmManagement.Mixfile do
 
   defp deps do
     [
-      {:excoveralls, "~> 0.15", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:pretty_log, "~> 0.1"},
       {:plug_cowboy, "~> 2.1"},
       {:jason, "~> 1.2"},
       {:skogsra, "~> 2.2"},
       {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
-      {:xandra, "~> 0.13"},
+      {:telemetry_metrics, "~> 0.6"},
+      {:telemetry_poller, "~> 0.5"},
+      {:xandra, "~> 0.19"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64
       {:re2, "~> 1.9.8", override: true},
