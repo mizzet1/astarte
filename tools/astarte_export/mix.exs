@@ -35,12 +35,12 @@ defmodule AstarteExport.MixProject do
 
   defp deps do
     [
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:astarte_core, "~> 1.2"},
       {:distillery, "~> 2.1.1"},
-      {:pretty_log, "~> 0.1.0"},
+      {:pretty_log, "~> 0.9.0"},
       {:xml_stream_writer, "~> 0.1"},
-      {:excoveralls, "~> 0.12", only: :test},
+      {:excoveralls, "~> 0.18", only: :test},
       {:dialyzex, github: "Comcast/dialyzex", only: [:dev, :ci]},
       # Workaround for Elixir 1.15 / ssl_verify_fun issue
       # See also: https://github.com/deadtrickster/ssl_verify_fun.erl/pull/27

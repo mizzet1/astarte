@@ -21,7 +21,7 @@ defmodule Astarte.Import.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:xandra, "~> 0.13"},
+      {:xandra, "~> 0.19"},
       {:logfmt, "~> 3.3"},
       {:astarte_core, "~> 1.2"},
       {:astarte_data_access, "~> 1.2"},
