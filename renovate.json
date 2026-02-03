@@ -1,7 +1,6 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "description": "Renovate configuration for Astarte",
-
   "extends": [
     "config:recommended",
     ":rebaseStalePrs",
@@ -10,86 +9,127 @@
     ":maintainLockFilesWeekly",
     "helpers:pinGitHubActionDigests"
   ],
-
   "configMigration": true,
-
   "dependencyDashboard": true,
   "dependencyDashboardApproval": false,
-
   "prCreation": "not-pending",
   "rebaseWhen": "behind-base-branch",
-
   "platformAutomerge": true,
   "automergeType": "branch",
-
   "rangeStrategy": "update-lockfile",
-
   "packageRules": [
     {
       "description": "Automerge safe updates (patch, minor, digest, lockfile)",
-      "matchUpdateTypes": ["patch", "minor", "digest", "lockFileMaintenance"],
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "digest",
+        "lockFileMaintenance"
+      ],
       "automerge": true,
-      "labels": ["dependencies", "automerge"]
+      "labels": [
+        "dependencies",
+        "automerge"
+      ]
     },
     {
       "description": "Elixir patch and minor updates - grouped and automerged",
-      "matchManagers": ["mix"],
-      "matchUpdateTypes": ["patch", "minor"],
+      "matchManagers": [
+        "mix"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor"
+      ],
       "groupName": "Elixir non-breaking updates",
-      "postUpdateOptions": ["mixLockUpdate"],
-      "stabilityDays": 3,
-      "labels": ["dependencies", "elixir", "automerge"]
+      "postUpdateOptions": [
+        "mixLockUpdate"
+      ],
+      "minimumReleaseAge": "3 days",
+      "labels": [
+        "dependencies",
+        "elixir",
+        "automerge"
+      ]
     },
     {
       "description": "Elixir major updates - grouped, manual, monthly",
-      "matchManagers": ["mix"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "mix"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "groupName": "Elixir breaking updates",
-      "postUpdateOptions": ["mixLockUpdate"],
-      "schedule": ["before 10am on the first day of the month"],
+      "postUpdateOptions": [
+        "mixLockUpdate"
+      ],
+      "schedule": [
+        "before 10am on the first day of the month"
+      ],
       "dependencyDashboardApproval": true,
-      "stabilityDays": 3,
+      "minimumReleaseAge": "3 days",
       "automerge": false,
-      "labels": ["dependencies", "elixir", "major"]
+      "labels": [
+        "dependencies",
+        "elixir",
+        "major"
+      ]
     },
     {
       "description": "GitHub Actions non-breaking updates - grouped and automerged",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["patch", "minor", "digest"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "patch",
+        "minor",
+        "digest"
+      ],
       "groupName": "GitHub Actions non-breaking",
       "automerge": true,
-      "labels": ["dependencies", "ci", "automerge"]
+      "labels": [
+        "dependencies",
+        "ci",
+        "automerge"
+      ]
     },
     {
       "description": "GitHub Actions major updates - grouped, manual",
-      "matchManagers": ["github-actions"],
-      "matchUpdateTypes": ["major"],
+      "matchManagers": [
+        "github-actions"
+      ],
+      "matchUpdateTypes": [
+        "major"
+      ],
       "groupName": "GitHub Actions breaking",
       "dependencyDashboardApproval": true,
       "automerge": false,
-      "labels": ["dependencies", "ci", "major"]
+      "labels": [
+        "dependencies",
+        "ci",
+        "major"
+      ]
     }
   ],
-
   "mix": {
     "enabled": true
   },
-
   "github-actions": {
     "enabled": true
   },
-
   "separateMajorMinor": true,
   "separateMinorPatch": false,
-
   "prConcurrentLimit": 5,
   "prHourlyLimit": 2,
-
   "vulnerabilityAlerts": {
     "enabled": true,
-    "labels": ["security"]
+    "labels": [
+      "security"
+    ]
   },
-
-  "labels": ["renovate"],
+  "labels": [
+    "renovate"
+  ],
   "timezone": "UTC"
 }
