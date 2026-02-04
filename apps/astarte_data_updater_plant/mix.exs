@@ -76,7 +76,7 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
 
   defp deps do
     [
-      {:amqp, "~> 3.3"},
+      {:amqp, "~> 4.0"},
       {:castore, "~> 1.0.0"},
       {:cyanide, "~> 2.0"},
       {:excoveralls, "~> 0.15", only: :test},
@@ -87,12 +87,12 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
       {:ex_rabbit_pool, github: "simplebet/ex_rabbit_pool", ref: "latest-amqp"},
       {:pretty_log, "~> 0.1"},
       {:plug_cowboy, "~> 2.1"},
-      {:telemetry_metrics_prometheus_core, "~> 0.4"},
-      {:telemetry_metrics, "~> 0.4"},
-      {:telemetry_poller, "~> 0.4"},
+      {:telemetry_metrics_prometheus_core, "~> 1.0"},
+      {:telemetry_metrics, "~> 1.0"},
+      {:telemetry_poller, "~> 1.0"},
       {:xandra, "~> 0.13"},
       {:skogsra, "~> 2.2"},
-      {:telemetry, "~> 0.4"},
+      {:telemetry, "~> 1.0"},
       {:observer_cli, "~> 1.5"},
       # Fix: re2 1.9.8 to build on arm64
       {:re2, "~> 1.9.8", override: true},
