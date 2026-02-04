@@ -26,7 +26,7 @@ env:
 jobs:
   test-dialyzer:
     name: Check Dialyzer
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
       matrix:
@@ -43,20 +43,20 @@ jobs:
     env:
       MIX_ENV: ci
     steps:
-    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+    - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       with:
         path: apps/${{ matrix.app }}/deps
         key: ${{ runner.os }}-dialyzer-mix-${{ env.otp_version }}-${{ env.elixir_version }}-${{ matrix.app }}-${{ hashFiles(format('{0}{1}{2}{3}', github.workspace, '/apps/', matrix.app, '/mix.lock')) }}
         restore-keys: |
           ${{ runner.os }}-dialyzer-mix-${{ env.otp_version }}-${{ env.elixir_version }}-${{ matrix.app }}-
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       with:
         path: apps/${{ matrix.app }}/_build
         key: ${{ runner.os }}-dialyzer-_build-${{ env.otp_version }}-${{ env.elixir_version }}-${{ matrix.app }}-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-dialyzer-_build-${{ env.otp_version }}-${{ env.elixir_version }}-${{ matrix.app }}-
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       id: plt_cache
       with:
         path: apps/${{ matrix.app }}/dialyzer_cache
@@ -81,7 +81,7 @@ jobs:
 
   test-coverage:
     name: Build and Test
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     # Wait for Dialyzer to give it a go before building
     needs:
       - test-dialyzer
@@ -122,8 +122,8 @@ jobs:
       CASSANDRA_NODES: localhost
       RABBITMQ_HOST: localhost
     steps:
-    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
-    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+    - uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5
       with:
         path: apps/${{ matrix.app }}/deps
         key: ${{ runner.os }}-apps-mix-${{ env.otp_version }}-${{ env.elixir_version }}-${{ matrix.app }}-${{ hashFiles(format('{0}{1}{2}{3}', github.workspace, '/apps/', matrix.app, '/mix.lock')) }}
@@ -157,9 +157,9 @@ jobs:
     - name: Compile
       working-directory: ./apps/${{ matrix.app }}
       run: mix compile --warnings-as-errors --force
-    - uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
+    - uses: actions/setup-node@6044e13b5dc448c55e2357c09f80417699197238 # v6
       with:
-        node-version: '10.x'
+        node-version: '24.x'
     - name: Wait for Cassandra
       run: |
         npm install -g wait-for-cassandra
@@ -172,7 +172,7 @@ jobs:
     - name: Upload Coverage Results to CodeCov
       # Don't upload more than once per component
       if: matrix.database == 'scylladb/scylla:5.2.2'
-      uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
       with:
         fail_ci_if_error: true #default = false
         token: ${{ secrets.CODECOV_TOKEN }}

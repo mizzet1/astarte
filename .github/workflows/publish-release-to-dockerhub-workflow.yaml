@@ -18,7 +18,7 @@ jobs:
 
   push_release_to_registry:
     name: Push Docker images to Docker Hub
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     permissions:
       packages: write
       contents: read
@@ -42,7 +42,7 @@ jobs:
     - e2e_tests
     steps:
       - name: Check out the repo
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
 
       - name: Log in to Docker Hub
         uses: docker/login-action@3227f5311cb93ffd14d13e65d8cc400d30f4dd8a
