@@ -48,7 +48,7 @@
       "matchManagers": ["mix"],
       "matchPaths": ["apps/**"],
       "matchUpdateTypes": ["major"],
-      "groupName": "Elixir background components (major)",
+      "groupName": "Elixir background components",
       "dependencyDashboardApproval": true,
       "automerge": false,
       "labels": ["dependencies", "elixir", "major"]
