@@ -228,6 +228,7 @@ services:
     image: scylladb/scylla:2025.2.2
     hostname: scylla
     restart: on-failure
+    user: root
     volumes:
       - scylla-data:/var/lib/scylla
 
