@@ -73,12 +73,12 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
   defp deps do
     [
       {:jason, "~> 1.2"},
-      {:amqp, "~> 3.3"},
+      {:amqp, "~> 4.0"},
       {:castore, "~> 1.0.0"},
       {:cyanide, "~> 2.0"},
       {:excoveralls, "~> 0.15", only: :test},
       {:mox, "~> 1.0", only: :test},
-      {:mimic, "~> 1.11", only: [:dev, :test]},
+      {:mimic, "~> 2.0", only: [:dev, :test]},
       {:exandra, "~> 0.13"},
       # hex.pm package and esl/ex_rabbit_pool do not support amqp version 2.1.
       # This fork is supporting amqp ~> 2.0 and also ~> 3.0.
