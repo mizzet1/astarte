@@ -51,14 +51,14 @@ defmodule Astarte.Events.Mixfile do
 
   defp deps do
     [
-      {:amqp, "~> 3.3"},
+      {:amqp, "~> 4.0"},
       {:castore, "~> 1.0.0"},
       {:con_cache, "~> 1.1"},
       {:excoveralls, "~> 0.15", only: :test},
       {:ex_rabbit_pool, github: "leductam/ex_rabbit_pool"},
       {:skogsra, "~> 2.2"},
       {:mox, "~> 1.0", only: :test},
-      {:mimic, "~> 1.11", only: [:dev, :test]},
+      {:mimic, "~> 2.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:astarte_data_access, path: "../astarte_data_access"},
       {:astarte_core, github: "astarte-platform/astarte_core", tag: "v1.3.0-rc.1"},
