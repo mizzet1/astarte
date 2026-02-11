@@ -25,27 +25,27 @@ jobs:
     env:
       MIX_ENV: ci
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v4
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: apps/${{ inputs.app }}/deps
         key: ${{ runner.os }}-dialyzer-mix-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-${{ hashFiles(format('{0}{1}{2}{3}', github.workspace, '/apps/', inputs.app, '/mix.lock')) }}
         restore-keys: |
           ${{ runner.os }}-dialyzer-mix-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-
-    - uses: actions/cache@v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: apps/${{ inputs.app }}/_build
         key: ${{ runner.os }}-dialyzer-_build-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-dialyzer-_build-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-
-    - uses: actions/cache@v4
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       id: plt_cache
       with:
         path: apps/${{ inputs.app }}/dialyzer_cache
         key: ${{ runner.os }}-dialyzer_cache-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-${{ github.sha }}
         restore-keys: |
           ${{ runner.os }}-dialyzer_cache-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-
-    - uses: erlef/setup-beam@v1.15
+    - uses: erlef/setup-beam@c2e02f777c158310fc6d3d4e11b36a52d2d52db8 # v1.15
       with:
         otp-version: ${{ env.otp_version }}
         elixir-version: ${{ env.elixir_version }}
@@ -94,8 +94,8 @@ jobs:
       CASSANDRA_NODES: localhost
       RABBITMQ_HOST: localhost
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/cache@v4
+    - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+    - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
       with:
         path: apps/${{ inputs.app }}/deps
         key: ${{ runner.os }}-apps-mix-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-${{ hashFiles(format('{0}{1}{2}{3}', github.workspace, '/apps/', inputs.app, '/mix.lock')) }}
@@ -109,7 +109,7 @@ jobs:
     #     key: ${{ runner.os }}-apps-_build-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-${{ github.sha }}
     #     restore-keys: |
     #       ${{ runner.os }}-apps-_build-${{ env.otp_version }}-${{ env.elixir_version }}-${{ inputs.app }}-
-    - uses: erlef/setup-beam@v1.15
+    - uses: erlef/setup-beam@c2e02f777c158310fc6d3d4e11b36a52d2d52db8 # v1.15
       with:
         otp-version: ${{ env.otp_version }}
         elixir-version: ${{ env.elixir_version }}
@@ -129,7 +129,7 @@ jobs:
     - name: Compile
       working-directory: ./apps/${{ inputs.app }}
       run: mix compile --warning-as-errors --force
-    - uses: actions/setup-node@v1
+    - uses: actions/setup-node@f1f314fca9dfce2769ece7d933488f076716723e # v1
       with:
         node-version: '10.x'
     - name: Wait for Cassandra
@@ -146,7 +146,7 @@ jobs:
       if: |
           matrix.database == 'scylladb/scylla:5.2.2' &&
           ${{ github.repository }} == astarte-platform/astarte
-      uses: codecov/codecov-action@v5
+      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de # v5
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
