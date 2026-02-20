@@ -52,9 +52,9 @@ defmodule Astarte.DataAccess.FDO.TO2Session do
     field :cipher_suite_name, Ecto.Enum, values: @ciphers
     field :owner_random, :binary
     field :secret, :binary
-    field :sevk, :binary
-    field :svk, :binary
-    field :sek, :binary
+    field :sevk, Exandra.UDT, type: :session_key
+    field :svk, Exandra.UDT, type: :session_key
+    field :sek, Exandra.UDT, type: :session_key
     field :max_owner_service_info_size, :integer
 
     field :device_service_info, Exandra.Map,
