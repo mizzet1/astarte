@@ -65,8 +65,14 @@ defmodule Astarte.DataAccess.FDO.TO2Session do
     field :owner_service_info, {:array, :binary}
     field :last_chunk_sent, :integer
     field :replacement_guid, :binary
-    field :replacement_rv_info, :binary
-    field :replacement_pub_key, :binary
-    field :replacement_hmac, :binary
+
+    field :replacement_rv_info, Astarte.DataAccess.FDO.CborType,
+      using: Astarte.Pairing.FDO.OwnershipVoucher.RendezvousInfo
+
+    field :replacement_pub_key, Astarte.DataAccess.FDO.CborType,
+      using: Astarte.Pairing.FDO.Types.PublicKey
+
+    field :replacement_hmac, Astarte.DataAccess.FDO.CborType,
+      using: Astarte.Pairing.FDO.Types.Hash
   end
 end
