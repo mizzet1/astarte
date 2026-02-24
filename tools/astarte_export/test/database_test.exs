@@ -35,6 +35,15 @@ defmodule Astarte.DatabaseTestdata do
     );
   """
 
+  @create_ownership_vouchers_table """
+  CREATE TABLE :keyspace.ownership_vouchers (
+      private_key blob,
+      voucher_data blob,
+      device_id uuid,
+      PRIMARY KEY (device_id, voucher_data)
+   );
+  """
+
   @create_capabilities_type """
   CREATE TYPE test.capabilities (
     purge_properties_compression_format int
@@ -356,7 +365,8 @@ defmodule Astarte.DatabaseTestdata do
           @create_names_table,
           @create_groups_table,
           @create_capabilities_type,
-          @create_devices_table,
+          @create_ownership_vouchers_table,
+      @create_devices_table,
           @create_interfaces_table,
           @create_endpoints_table,
           @create_individual_properties_table,
