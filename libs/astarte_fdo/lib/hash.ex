@@ -16,15 +16,10 @@
 # limitations under the License.
 #
 
-defmodule Astarte.Pairing.FDO.Types.Hash do
-  @moduledoc """
-  Represents a hash or HMAC value in the FDO (FIDO Device Onboard) protocol, including its type
-  and binary hash value. Provides functions for creating new hashes, encoding to CBOR format, and decoding
-  from CBOR format as specified in the FDO protocol.
-  """
+defmodule Astarte.FDO.Hash do
   use TypedStruct
 
-  alias Astarte.Pairing.FDO.Types.Hash
+  alias Astarte.FDO.Hash
 
   @type type() :: :sha256 | :sha384 | :hmac_sha256 | :hmac_sha384
 

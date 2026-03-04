@@ -16,15 +16,10 @@
 # limitations under the License.
 #
 
-defmodule Astarte.Pairing.FDO.Types.PublicKey do
-  @moduledoc """
-  Represents a public key in the FDO (FIDO Device Onboard) protocol, including its type, encoding, and body. Provides functions for encoding and decoding the
-  public key to and from CBOR format as specified in the FDO protocol.
-  """
-
+defmodule Astarte.FDO.PublicKey do
   use TypedStruct
 
-  alias Astarte.Pairing.FDO.Types.PublicKey
+  alias Astarte.FDO.PublicKey
 
   @type type() :: :rsa2048restr | :rsapkcs | :rsapss | :secp256r1 | :secp384r1
   @type encoding() :: :crypto | :x509 | :x5chain | :cosekey

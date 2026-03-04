@@ -43,6 +43,7 @@ allowed_scopes = [
   "credo",
   "nix",
   "deps",
+  "fdo",
 ]
 merge_commit = false
 imperative_subject = true

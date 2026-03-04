@@ -25,16 +25,16 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.Session do
   """
   use TypedStruct
 
-  alias Astarte.DataAccess.FDO.TO2Session
+  alias Astarte.FDO.Hash
+  alias Astarte.FDO.OwnershipVoucher.RendezvousInfo
+  alias Astarte.FDO.PublicKey
+  alias Astarte.FDO.TO2Session
   alias Astarte.Pairing.FDO.OwnerOnboarding.HelloDevice
   alias Astarte.Pairing.FDO.OwnerOnboarding.OwnerServiceInfo
   alias Astarte.Pairing.FDO.OwnerOnboarding.Session
   alias Astarte.Pairing.FDO.OwnerOnboarding.SessionKey
   alias Astarte.Pairing.FDO.OwnerOnboarding.SessionToken
   alias Astarte.Pairing.FDO.OwnerOnboarding.SignatureInfo
-  alias Astarte.Pairing.FDO.Rendezvous.RvTO2Addr
-  alias Astarte.Pairing.FDO.Types.Hash
-  alias Astarte.Pairing.FDO.Types.PublicKey
   alias Astarte.Pairing.Queries
   alias COSE.Messages.Encrypt0
 
@@ -84,7 +84,7 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.Session do
            %TO2Session{
              guid: guid,
              device_id: nil,
-             hmac: Hash.encode_cbor(hmac),
+             hmac: hmac,
              nonce: nonce,
              prove_dv_nonce: prove_dv_nonce,
              kex_suite_name: kex_name,
@@ -191,13 +191,6 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.Session do
     end
   end
 
-  defp decode_hash(binary) do
-    case CBOR.decode(binary) do
-      {:ok, cbor_list, ""} -> Hash.decode(cbor_list)
-      error -> error
-    end
-  end
-
   defp encode_values_to_cbor(map) when is_map(map) do
     Map.new(map, fn
       {key, value} ->
@@ -281,7 +274,7 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.Session do
       %TO2Session{
         guid: guid,
         device_id: device_id,
-        hmac: db_hmac,
+        hmac: hmac,
         nonce: db_nonce,
         prove_dv_nonce: prove_dv_nonce,
         setup_dv_nonce: setup_dv_nonce,
@@ -301,8 +294,6 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.Session do
         replacement_pub_key: replacement_pub_key,
         replacement_hmac: replacement_hmac
       } = database_session
-
-      {:ok, hmac} = Hash.decode_cbor(db_hmac)
 
       session = %Session{
         guid: guid,

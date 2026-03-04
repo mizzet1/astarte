@@ -1,16 +1,6 @@
-defmodule Astarte.Pairing.FDO.Types.ServiceInfo do
-  @moduledoc """
-  Defines the structure of the ServiceInfo type: a collection of key-value pairs
-  which allows an interaction between the Management Service (on the cloud side)
-  and Management Agent functions (on the Device side),
-  using the FIDO Device Onboard encrypted channel as a transport.
-  The module also provides functions for encoding and decoding ServiceInfo structures
-  to and from CBOR, as well as for splitting large ServiceInfo maps into
-  smaller chunks that fit within a specified maximum size.
-  """
-
+defmodule Astarte.FDO.ServiceInfo do
   use TypedStruct
-  alias Astarte.Pairing.FDO.Types.ServiceInfo
+  alias Astarte.FDO.ServiceInfo
 
   typedstruct do
     field :module, String.t()
@@ -116,13 +106,4 @@ defmodule Astarte.Pairing.FDO.Types.ServiceInfo do
   defp cbor_size(term) do
     term |> CBOR.encode() |> byte_size()
   end
-
-  @doc """
-  Indicates that the device yielded during Owner Service Info chunk transmission
-  by sending an empty ServiceInfo map.
-  """
-  defguard is_empty(service_info)
-           when service_info.module == nil and
-                  service_info.key == nil and
-                  service_info.value == nil
 end

@@ -16,17 +16,10 @@
 # limitations under the License.
 #
 
-defmodule Astarte.Pairing.FDO.Types.Error do
-  @moduledoc """
-  This module defines the structure of an error message in
-  the FDO protocol, including the error code, previous message ID,
-  error message, timestamp, and correlation ID.
-  It also provides functions for encoding the error message
-  into a CBOR for transmission in the FDO protocol.
-  """
+defmodule Astarte.FDO.Error do
   use TypedStruct
 
-  alias Astarte.Pairing.FDO.Types.Error
+  alias Astarte.FDO.Error
 
   typedstruct do
     field :error_code, non_neg_integer()

@@ -25,7 +25,7 @@ defmodule Astarte.Pairing.FDO.ServiceInfo do
   can be transmitted in manageable pieces.
   """
 
-  import Astarte.Pairing.FDO.Types.ServiceInfo
+  alias Astarte.FDO.ServiceInfo
 
   alias Astarte.Core.Device
   alias Astarte.Pairing.Engine
@@ -58,7 +58,7 @@ defmodule Astarte.Pairing.FDO.ServiceInfo do
           service_info: service_info
         }
       )
-      when is_empty(service_info) do
+      when service_info.module == nil and service_info.key == nil and service_info.value == nil do
     send_next_owner_chunk(session, realm_name)
   end
 
@@ -97,7 +97,7 @@ defmodule Astarte.Pairing.FDO.ServiceInfo do
         OwnerServiceInfo.build(realm_name, credentials_secret, encoded_device_id)
 
       service_info_chunks =
-        to_chunks(
+        ServiceInfo.to_chunks(
           owner_service_info.service_info,
           session.max_owner_service_info_size
         )

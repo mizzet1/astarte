@@ -96,8 +96,8 @@ defmodule Astarte.Pairing.Mixfile do
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:observer_cli, "~> 1.5"},
       {:cfxxl, github: "ispirata/cfxxl"},
-      {:astarte_data_access, path: astarte_lib("astarte_data_access")},
-      {:astarte_generators, path: astarte_lib("astarte_generators"), only: [:dev, :test]},
+      {:httpoison, "~> 2.2", override: true},
+      {:astarte_data_access, path: astarte_lib("astarte_data_access"), override: true},
       {:bcrypt_elixir, "~> 2.2"},
       {:xandra, "~> 0.19"},
       {:ecto, "~> 3.12"},
@@ -108,8 +108,9 @@ defmodule Astarte.Pairing.Mixfile do
       {:con_cache, "~> 1.1"},
       {:astarte_events, path: astarte_lib("astarte_events")},
       {:astarte_rpc, path: astarte_lib("astarte_rpc")},
-      # HTTP client needed by some tests, override to avoid conflicts with cfxxl
-      {:httpoison, "~> 2.2", override: true}
+      {:astarte_fdo, path: astarte_lib("astarte_fdo")},
+      {:astarte_generators, path: astarte_lib("astarte_generators"), only: [:dev, :test]},
+      {:stream_data, "~> 1.1", only: [:dev, :test]}
     ]
   end
 

@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2026 SECO Mind Srl
+# Copyright 2017 - 2025 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,19 +16,14 @@
 # limitations under the License.
 #
 
-defmodule Astarte.Pairing.FDO.OwnershipVoucherEncodingTest do
-  use ExUnit.Case, async: true
+# This file is responsible for configuring your application
+# and its dependencies with the aid of the Mix.Config module.
+import Config
 
-  alias Astarte.FDO.OwnershipVoucher
-  alias Astarte.Helpers.FDO
+# This configuration is loaded before any dependency and is restricted
+# to this project. If another project depends on this project, this
+# file won't be loaded nor affect the parent project. For this reason,
+# if you want to provide default values for your application for
+# 3rd-party users, it should be done in your "mix.exs" file.
 
-  test "encode_voucher_to_cbor/1 dynamically reconstructs valid CBOR from static sample" do
-    original_cbor = FDO.sample_cbor_voucher()
-
-    {:ok, voucher_struct} = OwnershipVoucher.decode_cbor(original_cbor)
-
-    re_encoded_cbor = OwnershipVoucher.cbor_encode(voucher_struct)
-
-    assert original_cbor == re_encoded_cbor
-  end
-end
+import_config "#{config_env()}.exs"

@@ -22,7 +22,7 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.SessionKey do
   including generation, shared secret computation, and key derivation for the session.
   """
 
-  alias Astarte.DataAccess.FDO.SessionKey
+  alias Astarte.FDO.SessionKey
   alias Astarte.Pairing.FDO.OwnerOnboarding.Core
   alias COSE.Keys.{ECC, RSA}
   alias COSE.Keys.Symmetric
