@@ -25,7 +25,7 @@ defmodule Astarte.Helpers.Database do
   alias Astarte.DataAccess.Devices.Device, as: DeviceSchema
   alias Astarte.DataAccess.Realms.Realm
   alias Astarte.DataAccess.Repo
-  alias Astarte.FDO.TO2Session
+  alias Astarte.DataAccess.FDO.TO2Session
   alias Astarte.Pairing.CredentialsSecret
   alias Astarte.Pairing.Queries
 

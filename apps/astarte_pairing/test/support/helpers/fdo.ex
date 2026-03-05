@@ -27,7 +27,7 @@ defmodule Astarte.Helpers.FDO do
   alias Astarte.DataAccess.Repo
   alias Astarte.FDO.Hash
   alias Astarte.FDO.OwnershipVoucher
-  alias Astarte.FDO.OwnershipVoucher.DBRecord, as: DBOwnershipVoucher
+  alias Astarte.DataAccess.FDO.OwnershipVoucher.DBRecord, as: DBOwnershipVoucher
   alias Astarte.FDO.OwnershipVoucher.RendezvousInfo
   alias Astarte.FDO.OwnershipVoucher.RendezvousInfo.RendezvousDirective
   alias Astarte.FDO.OwnershipVoucher.RendezvousInfo.RendezvousInstr

@@ -29,7 +29,6 @@ defmodule Astarte.Pairing.FDO.OwnerOnboardingTest do
   alias Astarte.Pairing.FDO.OwnerOnboarding.HelloDevice
   alias Astarte.Pairing.FDO.OwnerOnboarding.Session
   alias COSE.Messages.Sign1
-  alias COSE.Messages.Sign1
 
   @max_device_service_info_sz 4096
 

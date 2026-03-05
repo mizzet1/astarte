@@ -33,6 +33,8 @@ defmodule Astarte.Pairing.FDO.ServiceInfo do
   alias Astarte.Pairing.FDO.OwnerOnboarding.OwnerServiceInfo
   alias Astarte.Pairing.FDO.OwnerOnboarding.Session
 
+  import Astarte.FDO.ServiceInfo
+
   # If device has more data to send, save received part to the session
   # and respond with empty OwnerService Info
   def build_owner_service_info(
@@ -58,7 +60,7 @@ defmodule Astarte.Pairing.FDO.ServiceInfo do
           service_info: service_info
         }
       )
-      when service_info.module == nil and service_info.key == nil and service_info.value == nil do
+      when is_empty(service_info) do
     send_next_owner_chunk(session, realm_name)
   end
 

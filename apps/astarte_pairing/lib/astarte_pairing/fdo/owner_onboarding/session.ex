@@ -28,7 +28,7 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.Session do
   alias Astarte.FDO.Hash
   alias Astarte.FDO.OwnershipVoucher.RendezvousInfo
   alias Astarte.FDO.PublicKey
-  alias Astarte.FDO.TO2Session
+  alias Astarte.DataAccess.FDO.TO2Session
   alias Astarte.Pairing.FDO.OwnerOnboarding.HelloDevice
   alias Astarte.Pairing.FDO.OwnerOnboarding.OwnerServiceInfo
   alias Astarte.Pairing.FDO.OwnerOnboarding.Session

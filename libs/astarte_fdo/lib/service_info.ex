@@ -1,4 +1,31 @@
+#
+# This file is part of Astarte.
+#
+# Copyright 2025 SECO Mind Srl
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
+
 defmodule Astarte.FDO.ServiceInfo do
+  @moduledoc """
+  Defines the structure of the ServiceInfo type: a collection of key-value pairs
+  which allows an interaction between the Management Service (on the cloud side)
+  and Management Agent functions (on the Device side),
+  using the FIDO Device Onboard encrypted channel as a transport.
+  The module also provides functions for encoding and decoding ServiceInfo structures
+  to and from CBOR, as well as for splitting large ServiceInfo maps into
+  smaller chunks that fit within a specified maximum size.
+  """
   use TypedStruct
   alias Astarte.FDO.ServiceInfo
 
@@ -106,4 +133,13 @@ defmodule Astarte.FDO.ServiceInfo do
   defp cbor_size(term) do
     term |> CBOR.encode() |> byte_size()
   end
+
+  @doc """
+  Indicates that the device yielded during Owner Service Info chunk transmission
+  by sending an empty ServiceInfo map.
+  """
+  defguard is_empty(service_info)
+           when service_info.module == nil and
+                  service_info.key == nil and
+                  service_info.value == nil
 end

@@ -17,6 +17,10 @@
 #
 
 defmodule Astarte.FDO.PublicKey do
+  @moduledoc """
+  Represents a public key in the FDO (FIDO Device Onboard) protocol, including its type, encoding, and body. Provides functions for encoding and decoding the
+  public key to and from CBOR format as specified in the FDO protocol.
+  """
   use TypedStruct
 
   alias Astarte.FDO.PublicKey

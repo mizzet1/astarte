@@ -32,6 +32,7 @@ allowed_scopes = [
   "data_access",
   "events",
   "rpc",
+  "fdo",
   "generators",
   # tools
   "e2e",
@@ -43,7 +44,6 @@ allowed_scopes = [
   "credo",
   "nix",
   "deps",
-  "fdo",
 ]
 merge_commit = false
 imperative_subject = true

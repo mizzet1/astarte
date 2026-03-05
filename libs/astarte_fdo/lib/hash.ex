@@ -17,6 +17,11 @@
 #
 
 defmodule Astarte.FDO.Hash do
+  @moduledoc """
+  Represents a hash or HMAC value in the FDO (FIDO Device Onboard) protocol, including its type
+  and binary hash value. Provides functions for creating new hashes, encoding to CBOR format, and decoding
+  from CBOR format as specified in the FDO protocol.
+  """
   use TypedStruct
 
   alias Astarte.FDO.Hash

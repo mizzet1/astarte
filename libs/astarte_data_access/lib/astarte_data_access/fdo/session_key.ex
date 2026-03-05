@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2025 SECO Mind Srl
+# Copyright 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -16,25 +16,26 @@
 # limitations under the License.
 #
 
-defmodule Astarte.FDO.OwnershipVoucher.DBRecord do
+defmodule Astarte.DataAccess.FDO.SessionKey do
   @moduledoc """
-  Ecto schema for persisting ownership voucher binary data to the database.
+  Ecto embedded schema representing the `session_key` Cassandra UDT.
+
+  Fields map to `%COSE.Keys.Symmetric{}`:
+
+    - `alg` — cipher algorithm atom stored as text (e.g. `"aes_128_gcm"`)
+    - `k`   — raw binary key material
+    - `kty` — key type atom stored as text
+
+  Conversion to/from `%COSE.Keys.Symmetric{}` is handled by
+  `Astarte.FDO.OwnerOnboarding.SessionKey.to_db/1` and `from_db/1`.
   """
+
   use TypedEctoSchema
-  import Ecto.Changeset
-  alias Astarte.FDO.OwnershipVoucher.DBRecord
 
   @primary_key false
-  typed_schema "ownership_vouchers" do
-    field :private_key, :binary
-    field :voucher_data, :binary
-    field :guid, Astarte.DataAccess.UUID, primary_key: true
-  end
-
-  @doc false
-  def changeset(%DBRecord{} = record, attrs) do
-    record
-    |> cast(attrs, [:private_key, :voucher_data, :guid])
-    |> validate_required([:private_key, :voucher_data, :guid])
+  typed_embedded_schema do
+    field :alg, :string
+    field :k, :binary
+    field :kty, :string
   end
 end

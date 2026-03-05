@@ -16,7 +16,7 @@
 # limitations under the License.
 #
 
-defmodule Astarte.FDO.CBOR do
+defmodule Astarte.DataAccess.FDO.CBOR do
     @type t :: term
   @moduledoc """
   A generic Ecto parameterized type that stores values as CBOR binaries.
@@ -27,7 +27,7 @@ defmodule Astarte.FDO.CBOR do
 
   ## Example
 
-      field :replacement_rv_info, Astarte.FDO.CBOR,
+      field :replacement_rv_info, Astarte.DataAccess.FDO.CBOR,
         using: Astarte.FDO.OwnershipVoucher.RendezvousInfo
   """
 

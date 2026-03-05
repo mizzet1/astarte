@@ -22,7 +22,7 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.SessionKey do
   including generation, shared secret computation, and key derivation for the session.
   """
 
-  alias Astarte.FDO.SessionKey
+  alias Astarte.DataAccess.FDO.SessionKey, as: DBSessionKey
   alias Astarte.Pairing.FDO.OwnerOnboarding.Core
   alias COSE.Keys.{ECC, RSA}
   alias COSE.Keys.Symmetric
@@ -316,27 +316,14 @@ defmodule Astarte.Pairing.FDO.OwnerOnboarding.SessionKey do
 
   def to_db(nil), do: nil
 
-  def to_db(%Symmetric{alg: alg, k: k, kty: kty}) do
-    %SessionKey{alg: Atom.to_string(alg), k: k, kty: Atom.to_string(kty)}
+  def to_db(%Symmetric{} = key) do
+    %{"alg" => alg, "k" => k, "kty" => kty} = Symmetric.to_map(key)
+    %DBSessionKey{alg: alg, k: k, kty: kty}
   end
 
   def from_db(nil), do: nil
 
-  def from_db(%SessionKey{alg: alg, k: k, kty: kty}) do
-    %Symmetric{
-      alg: String.to_existing_atom(alg),
-      k: k,
-      kty: String.to_existing_atom(kty)
-    }
+  def from_db(%{} = map) do
+    Symmetric.from_map(map)
   end
-
-  def from_db(%{"alg" => alg, "k" => k, "kty" => kty}) do
-    %Symmetric{
-      alg: String.to_existing_atom(alg),
-      k: k,
-      kty: String.to_existing_atom(kty)
-    }
-  end
-
-  def from_db(%{}), do: nil
 end

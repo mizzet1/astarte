@@ -1,4 +1,4 @@
-defmodule AstarteFdo.MixProject do
+defmodule Astarte.FDO.MixProject do
 
   use Mix.Project
 
@@ -28,20 +28,15 @@ defmodule AstarteFdo.MixProject do
     nil
   end
 
-  defp astarte_lib(library_name) do
-    base_directory = System.get_env("ASTARTE_LIBRARIES_PATH", "../../libs")
-    Path.join(base_directory, library_name)
-  end
-
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
       {:ecto, "~> 3.10"},
       {:typed_ecto_schema, "~> 0.4"},
       {:cbor, "~> 1.0"},
-      {:cose, github: "secomind/cose-elixir"},
+      {:cose, github: "mizzet1/cose-elixir"},
       {:dialyxir, "~> 1.0", only: [:dev, :ci], runtime: false},
-      {:astarte_data_access, path: astarte_lib("astarte_data_access"), override: true}
+      {:typedstruct, "~> 0.5"}
     ]
   end
 end

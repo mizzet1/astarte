@@ -28,8 +28,8 @@ defmodule Astarte.Pairing.Queries do
   alias Astarte.DataAccess.KvStore
   alias Astarte.DataAccess.Realms.Realm
   alias Astarte.DataAccess.Repo
-  alias Astarte.FDO.OwnershipVoucher.DBRecord, as: OwnershipVoucher
-  alias Astarte.FDO.TO2Session
+  alias Astarte.DataAccess.FDO.OwnershipVoucher.DBRecord, as: OwnershipVoucher
+  alias Astarte.DataAccess.FDO.TO2Session
 
   require Logger
 
