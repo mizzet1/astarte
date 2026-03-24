@@ -26,6 +26,7 @@ defmodule Astarte.Secrets.Core do
   alias COSE.Keys.ECC
   alias COSE.Keys.RSA
   alias HTTPoison.Response
+  alias Astarte.Secrets
 
   require Logger
 
@@ -501,5 +502,23 @@ defmodule Astarte.Secrets.Core do
 
   defp map_cose_alg_to_vault_opts(:rs384) do
     [signature_algorithm: "pkcs1v15"]
+  end
+
+  def get_keys_from_algorithm(realm_name, key_algorithms) when is_list(key_algorithms) do
+    Enum.map(key_algorithms, fn key_algorithm ->
+      {:ok, namespace} = Secrets.create_namespace(realm_name, key_algorithm)
+
+      with {:ok, keys} <- Secrets.list_keys_names(namespace: namespace) do
+        %{key_algorithm => keys}
+      end
+    end)
+  end
+
+  def get_keys_from_algorithm(realm_name, key_algorithm) when is_binary(key_algorithm) do
+    {:ok, namespace} = Secrets.create_namespace(realm_name, key_algorithm)
+
+    with {:ok, keys} <- Secrets.list_keys_names(namespace: namespace) do
+      %{key_algorithm => keys}
+    end
   end
 end
