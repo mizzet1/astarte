@@ -21,6 +21,7 @@ defmodule Astarte.PairingWeb.OwnershipVoucherController do
 
   alias Astarte.DataAccess.FDO.OwnershipVoucher.CreateRequest
   alias Astarte.FDO.OwnershipVoucher
+  alias Astarte.FDO.OwnershipVoucher.LoadRequest
   alias Astarte.FDO.TO0
 
   action_fallback Astarte.PairingWeb.FallbackController
@@ -53,6 +54,24 @@ defmodule Astarte.PairingWeb.OwnershipVoucherController do
              extracted_private_key
            ) do
       send_resp(conn, 200, "")
+    end
+  end
+
+  @doc """
+  Validates an FDO Ownership Voucher load request.
+
+  Accepts a JSON body with a `data` key containing:
+    * `ownership_voucher` – PEM-encoded ownership voucher. The device GUID is
+      extracted from the voucher itself.
+    * `key_name` – name of the signing key in the secrets store.
+
+  Returns `200 OK` with the owner public key PEM on success.
+  """
+  def load(conn, %{"data" => data, "realm_name" => realm_name}) do
+    with {:ok, req} <-
+           LoadRequest.changeset(%LoadRequest{}, Map.put(data, "realm_name", realm_name))
+           |> Ecto.Changeset.apply_action(:insert) do
+      json(conn, %{data: %{public_key: req.extracted_owner_key.public_pem}})
     end
   end
 end

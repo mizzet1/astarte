@@ -82,7 +82,9 @@ defmodule Astarte.PairingWeb.Router do
     scope "/ownership" do
       pipe_through :fdo_feature_gate
       pipe_through :agent_api
+
       post "/", OwnershipVoucherController, :create
+      post "/load", OwnershipVoucherController, :load
     end
 
     scope "/agent" do
