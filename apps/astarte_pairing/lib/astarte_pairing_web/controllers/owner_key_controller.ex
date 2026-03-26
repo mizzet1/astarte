@@ -56,4 +56,16 @@ defmodule Astarte.PairingWeb.OwnerKeyController do
     keys = Secrets.Core.get_keys_from_algorithm(realm_name, @supported_key_algo)
     send_resp(conn, 200, Jason.encode!(keys))
   end
+
+  def get_key(conn, %{"realm_name" => realm_name, "key_name" => key_name}) do
+    case Secrets.Core.find_key(realm_name, key_name) do
+      {:ok, key} ->
+        json(conn, %{data: %{key_name: key.name, public_key: key.public_pem}})
+
+      :not_found ->
+        conn
+        |> put_status(:not_found)
+        |> json(%{errors: %{detail: "Key not found"}})
+    end
+  end
 end

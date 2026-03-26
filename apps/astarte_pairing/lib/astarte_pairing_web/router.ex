@@ -85,6 +85,7 @@ defmodule Astarte.PairingWeb.Router do
 
       post "/", OwnershipVoucherController, :create
       post "/load", OwnershipVoucherController, :load
+      post "/compatible_keys", OwnershipVoucherController, :compatible_keys
     end
 
     scope "/agent" do
@@ -112,6 +113,7 @@ defmodule Astarte.PairingWeb.Router do
 
       post "/owner_key", OwnerKeyController, :create_or_upload_key
       get "/owner_keys", OwnerKeyController, :list_keys
+      get "/owner_key/:key_name", OwnerKeyController, :get_key
     end
   end
 

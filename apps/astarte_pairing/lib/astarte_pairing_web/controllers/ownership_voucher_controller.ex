@@ -23,6 +23,7 @@ defmodule Astarte.PairingWeb.OwnershipVoucherController do
   alias Astarte.FDO.OwnershipVoucher
   alias Astarte.FDO.OwnershipVoucher.LoadRequest
   alias Astarte.FDO.TO0
+  alias Astarte.Secrets.Core, as: SecretsCore
 
   action_fallback Astarte.PairingWeb.FallbackController
 
@@ -60,11 +61,6 @@ defmodule Astarte.PairingWeb.OwnershipVoucherController do
   @doc """
   Validates an FDO Ownership Voucher load request.
 
-  Accepts a JSON body with a `data` key containing:
-    * `ownership_voucher` – PEM-encoded ownership voucher. The device GUID is
-      extracted from the voucher itself.
-    * `key_name` – name of the signing key in the secrets store.
-
   Returns `200 OK` with the owner public key PEM on success.
   """
   def load(conn, %{"data" => data, "realm_name" => realm_name}) do
@@ -72,6 +68,32 @@ defmodule Astarte.PairingWeb.OwnershipVoucherController do
            LoadRequest.changeset(%LoadRequest{}, Map.put(data, "realm_name", realm_name))
            |> Ecto.Changeset.apply_action(:insert) do
       json(conn, %{data: %{public_key: req.extracted_owner_key.public_pem}})
+    end
+  end
+
+  @doc """
+  Returns the list of registered owner keys that are compatible with the
+  given ownership voucher.
+
+  Returns `200 OK` with `{"data": {"<algorithm>": ["key_name", ...]}}` on success.
+  """
+  def compatible_keys(conn, %{"data" => data, "realm_name" => realm_name}) do
+    ownership_voucher_pem = Map.get(data, "ownership_voucher")
+
+    with {:voucher, pem} when not is_nil(pem) <- {:voucher, ownership_voucher_pem},
+         {:ok, key_algorithm} <- LoadRequest.key_algorithm_from_voucher(pem),
+         [keys_map] <- SecretsCore.get_keys_from_algorithm(realm_name, [key_algorithm]) do
+      json(conn, %{data: keys_map})
+    else
+      {:voucher, nil} ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{detail: "ownership_voucher is required"}})
+
+      _ ->
+        conn
+        |> put_status(:unprocessable_entity)
+        |> json(%{errors: %{detail: "ownership_voucher is not a valid ownership voucher"}})
     end
   end
 end

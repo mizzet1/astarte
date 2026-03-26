@@ -55,6 +55,26 @@ defmodule Astarte.FDO.OwnershipVoucher.LoadRequest do
     |> verify_owner_key_matches()
   end
 
+  @doc """
+  Extracts the key algorithm required by the last ownership voucher entry.
+
+  Accepts a PEM-encoded ownership voucher string and returns
+  `{:ok, key_algorithm}` where `key_algorithm` is one of `:es256`, `:es384`,
+  `:rs256`, or `:rs384`, or `:error` if the voucher cannot be parsed or the
+  algorithm is unsupported.
+  """
+  @spec key_algorithm_from_voucher(String.t()) :: {:ok, atom()} | :error
+  def key_algorithm_from_voucher(ownership_voucher_pem) do
+    with {:ok, binary_voucher} <- OwnershipVoucher.binary_voucher(ownership_voucher_pem),
+         {:ok, decoded_voucher, _rest} <- CBOR.decode(binary_voucher),
+         {:ok, voucher_struct} <- OwnershipVoucher.decode(decoded_voucher),
+         {:ok, %PublicKey{type: pubkey_type}} <-
+           OVCore.entry_private_key(List.last(voucher_struct.entries)),
+         {:ok, key_algorithm} <- pubkey_type_to_algorithm(pubkey_type) do
+      {:ok, key_algorithm}
+    end
+  end
+
   defp put_device_guid(%Ecto.Changeset{valid?: false} = changeset), do: changeset
 
   defp put_device_guid(changeset) do

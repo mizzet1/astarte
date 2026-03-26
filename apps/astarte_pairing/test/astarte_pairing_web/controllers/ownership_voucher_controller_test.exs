@@ -218,4 +218,76 @@ defmodule Astarte.PairingWeb.Controllers.OwnershipVoucherControllerTest do
     load_path = ownership_voucher_path(conn, :load, realm_name)
     %{load_path: load_path}
   end
+
+  describe "/ownership/compatible_keys" do
+    setup :compatible_keys_setup
+
+    test "returns 200 with a map of algorithm to key names", context do
+      %{auth_conn: conn, path: path, realm_name: realm_name} = context
+
+      stub(Secrets, :create_namespace, fn ^realm_name, :es256 ->
+        {:ok, "fdo_owner_keys/#{realm_name}/ecdsa-p256"}
+      end)
+
+      stub(Secrets, :list_keys_names, fn _opts ->
+        {:ok, [@sample_key_name, "another_key"]}
+      end)
+
+      body =
+        conn
+        |> post(path, %{data: %{"ownership_voucher" => sample_voucher()}})
+        |> json_response(200)
+
+      assert %{"es256" => [@sample_key_name, "another_key"]} = get_in(body, ["data"])
+    end
+
+    test "returns 200 with an empty list when no keys are registered", context do
+      %{auth_conn: conn, path: path, realm_name: realm_name} = context
+
+      stub(Secrets, :create_namespace, fn ^realm_name, :es256 ->
+        {:ok, "fdo_owner_keys/#{realm_name}/ecdsa-p256"}
+      end)
+
+      stub(Secrets, :list_keys_names, fn _opts -> {:ok, []} end)
+
+      body =
+        conn
+        |> post(path, %{data: %{"ownership_voucher" => sample_voucher()}})
+        |> json_response(200)
+
+      assert %{"es256" => []} = get_in(body, ["data"])
+    end
+
+    test "returns 422 when the ownership_voucher field is missing", context do
+      %{auth_conn: conn, path: path} = context
+
+      conn
+      |> post(path, %{data: %{}})
+      |> response(422)
+    end
+
+    test "returns 422 when the ownership_voucher is not a valid voucher", context do
+      %{auth_conn: conn, path: path} = context
+
+      conn
+      |> post(path, %{data: %{"ownership_voucher" => "not a voucher"}})
+      |> response(422)
+    end
+
+    test "returns 404 when the FDO feature is disabled", context do
+      %{auth_conn: conn, path: path} = context
+
+      stub(Config, :enable_fdo!, fn -> false end)
+
+      conn
+      |> post(path, %{data: %{"ownership_voucher" => sample_voucher()}})
+      |> response(404)
+    end
+  end
+
+  defp compatible_keys_setup(context) do
+    %{auth_conn: conn, realm_name: realm_name} = context
+    path = ownership_voucher_path(conn, :compatible_keys, realm_name)
+    %{path: path}
+  end
 end

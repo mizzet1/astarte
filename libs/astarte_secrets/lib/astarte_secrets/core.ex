@@ -521,4 +521,21 @@ defmodule Astarte.Secrets.Core do
       %{key_algorithm => keys}
     end
   end
+
+  @supported_key_algorithms [:es256, :es384, :rs256, :rs384]
+
+  @doc """
+  Searches all algorithm namespaces for a key with the given name.
+  Returns `{:ok, key}` if found, `:not_found` otherwise.
+  """
+  def find_key(realm_name, key_name) do
+    Enum.find_value(@supported_key_algorithms, :not_found, fn algorithm ->
+      {:ok, namespace} = Secrets.create_namespace(realm_name, algorithm)
+
+      case Secrets.get_key(key_name, namespace: namespace) do
+        {:ok, key} -> {:ok, key}
+        _ -> nil
+      end
+    end)
+  end
 end

@@ -186,4 +186,24 @@ defmodule Astarte.FDO.OwnershipVoucher.LoadRequestTest do
   defp errors_on(changeset) do
     Ecto.Changeset.traverse_errors(changeset, fn {msg, _opts} -> msg end)
   end
+
+  describe "key_algorithm_from_voucher/1" do
+    test "returns {:ok, :es256} for the sample secp256r1 voucher" do
+      assert {:ok, :es256} = LoadRequest.key_algorithm_from_voucher(sample_voucher())
+    end
+
+    test "returns :error for an invalid PEM string" do
+      assert :error = LoadRequest.key_algorithm_from_voucher("not a voucher")
+    end
+
+    test "returns :error for a malformed base64 body" do
+      bad_voucher = """
+      -----BEGIN OWNERSHIP VOUCHER-----
+      * not valid base64 *
+      -----END OWNERSHIP VOUCHER-----
+      """
+
+      assert :error = LoadRequest.key_algorithm_from_voucher(bad_voucher)
+    end
+  end
 end
