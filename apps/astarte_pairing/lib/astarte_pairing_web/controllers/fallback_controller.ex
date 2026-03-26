@@ -78,6 +78,14 @@ defmodule Astarte.PairingWeb.FallbackController do
     |> render(:invalid_auth_path)
   end
 
+  # The format of the uploaded (FDO) key is not the expected one
+  def call(conn, {:error, :unprocessable_key}) do
+    conn
+    |> put_status(:unprocessable_entity)
+    |> put_view(Astarte.PairingWeb.ErrorView)
+    |> render(:unprocessable_key)
+  end
+
   # This is called when no JWT token is present
   def auth_error(conn, {:unauthenticated, :unauthenticated}, _opts) do
     conn
