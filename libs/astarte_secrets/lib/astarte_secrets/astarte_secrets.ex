@@ -35,6 +35,13 @@ defmodule Astarte.Secrets do
     end
   end
 
+  @doc """
+  Deletes the given namespace from OpenBao.
+  """
+  def delete_namespace(namespace) do
+    Core.delete_namespace(namespace)
+  end
+
   def list_namespaces do
     with {:ok, namespaces} <- Core.list_namespaces() do
       {:ok, Enum.to_list(namespaces)}

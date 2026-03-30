@@ -332,6 +332,31 @@ defmodule Astarte.Secrets.Core do
     end)
   end
 
+  @doc """
+  Deletes the given namespace from OpenBao.
+  """
+  def delete_namespace(namespace) do
+    parent = Path.dirname(namespace)
+    leaf = Path.basename(namespace)
+
+    parent_ns = if parent == ".", do: "", else: parent
+
+    headers = []
+    options = [namespace: parent_ns]
+
+    case Client.delete("/sys/namespaces/#{leaf}", headers, options) do
+      {:ok, %Response{status_code: status_code}} when status_code in [200, 204] ->
+        :ok
+
+      error_resp ->
+        Logger.error(
+          "Encountered HTTP error while deleting namespace #{namespace}: #{inspect(error_resp)}"
+        )
+
+        :error
+    end
+  end
+
   def mount_transit_engine(namespace) do
     req_body = %{type: "transit"} |> Jason.encode!()
     headers = [{"Content-Type", "application/json"}]
@@ -347,6 +372,8 @@ defmodule Astarte.Secrets.Core do
         else
           "Encountered HTTP error while mounting transit engine in namespace #{namespace}: #{inspect(resp)}"
           |> Logger.error()
+
+          :error
         end
 
       error_resp ->

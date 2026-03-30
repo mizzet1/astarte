@@ -113,7 +113,7 @@ defmodule Astarte.PairingWeb.Controllers.OwnerKeyControllerTest do
     test "list 4 keys in p256 group", context do
       %{
         auth_conn: conn,
-        openbao_namespace: namespace,
+        openbao_namespace: _namespace,
         list_path: path
       } = context
 
@@ -153,6 +153,8 @@ defmodule Astarte.PairingWeb.Controllers.OwnerKeyControllerTest do
     }
 
     {:ok, namespace_es256} = Secrets.create_namespace(realm_name, :es256)
+
+    on_exit(fn -> Secrets.delete_namespace(namespace_es256) end)
 
     %{
       create_path: create_path,
@@ -199,6 +201,8 @@ defmodule Astarte.PairingWeb.Controllers.OwnerKeyControllerTest do
       {:ok, _} =
         OwnerKeyInitialization.create_or_upload(create_or_upload_changeset, realm_name)
     end)
+
+    on_exit(fn -> Secrets.delete_namespace(namespace_es256) end)
 
     %{list_path: list_path, openbao_namespace: namespace_es256}
   end
