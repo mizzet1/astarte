@@ -50,7 +50,10 @@ defmodule Astarte.FDO.Core.Rendezvous.OwnerSign.TO1D do
     payload = encode_cbor(to1d) |> COSE.tag_as_byte()
 
     # TODO: choose alg based on key
-    %Sign1{payload: payload, phdr: %{alg: :es256}, uhdr: %{}}
-    |> Sign1.sign_encode(owner_key)
+    result =
+      %Sign1{payload: payload, phdr: %{alg: :es256}, uhdr: %{}}
+      |> Sign1.sign_encode(owner_key)
+
+    {:ok, result}
   end
 end

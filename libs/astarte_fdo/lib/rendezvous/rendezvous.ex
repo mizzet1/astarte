@@ -63,26 +63,54 @@ defmodule Astarte.FDO.Rendezvous do
         "error during owner sign message: unexpected response #{inspect(response)}"
         |> Logger.error()
 
-        :error
+        {:error, :invalid_accept_owner_response}
 
       {:error, reason} ->
         "error during owner sign message: http error #{inspect(reason)}"
         |> Logger.error()
 
-        :error
+        {:error, :invalid_accept_owner_response}
     end
   end
 
   defp verify_accept_owner_response(accept_owner_body) do
-    with {:ok, message, _} <- CBOR.decode(accept_owner_body),
-         [wait_seconds] when is_integer(wait_seconds) <- message do
-      {:ok, wait_seconds}
-    else
+    case CBOR.decode(accept_owner_body) do
+      {:ok, [wait_seconds], _} when is_integer(wait_seconds) ->
+        {:ok, wait_seconds}
+
+      {:ok, _, _} ->
+        case extract_fdo_error_string(accept_owner_body) do
+          {:ok, error_string} ->
+            "error during owner sign message: FDO error from rendezvous server: #{error_string}"
+            |> Logger.error()
+
+            {:error, {:fdo_rendezvous_error, error_string}}
+
+          :not_fdo_error ->
+            "error during owner sign message: invalid response body #{inspect(accept_owner_body, limit: :infinity)}"
+            |> Logger.error()
+
+            {:error, :invalid_accept_owner_response}
+        end
+
       _ ->
-        "error during owner sign message: invalid response body #{inspect(accept_owner_body)}"
+        "error during owner sign message: invalid response body #{inspect(accept_owner_body, limit: :infinity)}"
         |> Logger.error()
 
-        :error
+        {:error, :invalid_accept_owner_response}
+    end
+  end
+
+  # Attempts to extract the errorString from a CBOR-encoded FDO ErrorMessage.
+  # FDO ErrorMessage = [errorCode, prevMsgId, errorString, errorTs, errorUuid]
+  defp extract_fdo_error_string(body) do
+    case CBOR.decode(body) do
+      {:ok, [error_code, _prev_msg_id, error_string, _ts, _uuid], _}
+      when is_integer(error_code) and is_binary(error_string) ->
+        {:ok, error_string}
+
+      _ ->
+        :not_fdo_error
     end
   end
 
@@ -95,13 +123,13 @@ defmodule Astarte.FDO.Rendezvous do
         "error during hello message: unexpected response #{inspect(response)}"
         |> Logger.error()
 
-        :error
+        {:error, :hello_error}
 
       {:error, reason} ->
         "error during hello message: http error #{inspect(reason)}"
         |> Logger.error()
 
-        :error
+        {:error, :hello_error}
     end
   end
 
@@ -114,7 +142,7 @@ defmodule Astarte.FDO.Rendezvous do
         "error during error message: invalid nonce #{inspect(reason)}"
         |> Logger.error()
 
-        :error
+        {:error, :hello_error}
     end
   end
 

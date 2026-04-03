@@ -102,6 +102,31 @@ defmodule Astarte.PairingWeb.FallbackController do
     |> render(:missing_ownership_voucher)
   end
 
+  def call(conn, {:error, {:fdo_rendezvous_error, message}}) do
+    Logger.error("FDO rendezvous server error: #{message}")
+
+    conn
+    |> put_status(:bad_gateway)
+    |> put_view(Astarte.PairingWeb.ErrorView)
+    |> render(:rendezvous_error)
+  end
+
+  def call(conn, {:error, :invalid_accept_owner_response}) do
+    conn
+    |> put_status(:bad_gateway)
+    |> put_view(Astarte.PairingWeb.ErrorView)
+    |> render(:rendezvous_error)
+  end
+
+  def call(conn, {:error, reason}) do
+    Logger.error("Unhandled controller error: #{inspect(reason)}")
+
+    conn
+    |> put_status(:internal_server_error)
+    |> put_view(Astarte.PairingWeb.ErrorView)
+    |> render(:"500")
+  end
+
   # This is called when no JWT token is present
   def auth_error(conn, {:unauthenticated, :unauthenticated}, _opts) do
     conn

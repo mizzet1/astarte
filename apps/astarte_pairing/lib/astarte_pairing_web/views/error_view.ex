@@ -95,6 +95,14 @@ defmodule Astarte.PairingWeb.ErrorView do
     }
   end
 
+  def render("rendezvous_error.json", _assigns) do
+    %{
+      errors: %{
+        detail: "The FDO rendezvous server rejected the ownership voucher registration"
+      }
+    }
+  end
+
   def render("422.json", _assigns) do
     %{
       errors: %{

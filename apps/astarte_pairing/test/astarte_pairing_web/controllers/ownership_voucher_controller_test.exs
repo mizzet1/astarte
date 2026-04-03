@@ -29,11 +29,36 @@ defmodule Astarte.PairingWeb.Controllers.OwnershipVoucherControllerTest do
 
   @sample_key_name "owner_key"
 
-  @sample_owner_public_key_pem """
-  -----BEGIN PUBLIC KEY-----
-  MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAES+TkA7VtJQv9YQ75yl5btXKR/cso
-  yfLzYWUTgxViGMfJkvql4W3zrtRaVPU9I06TOHFC2Mwy+9S3A7UWv/EWtg==
-  -----END PUBLIC KEY-----
+  @sample_private_key_pem """
+  -----BEGIN EC PRIVATE KEY-----
+  MHcCAQEEIH41aNoVYh0/QX8FzUVu5aojDvaCPilLSeWNEL78fAaBoAoGCCqGSM49
+  AwEHoUQDQgAEroZPR93c3oUpkr8ylwnnGEaX/YzUmViGx/YpptKXBFFzz81Vg+Xf
+  4upGU3lmnv6lf1yQulog6rwkuptncIx4eg==
+  -----END EC PRIVATE KEY-----
+  """
+
+  @sample_ownership_voucher_pem """
+  -----BEGIN OWNERSHIP VOUCHER-----
+  hRhlWQGChhhlUOYZotoizUjOquGbU1cCpE6BhIIDQxkfkoICRUR/AAABggRDGR+S
+  ggxBAWtwMjU2LWRldmljZYMKAVkBHjCCARowgcGgAwIBAgIDAeJAMAoGCCqGSM49
+  BAMCMBYxFDASBgNVBAMMC1Rlc3QgRGV2aWNlMB4XDTI0MDEwMTAwMDAwMFoXDTM0
+  MDEwMTAwMDAwMFowFjEUMBIGA1UEAwwLVGVzdCBEZXZpY2UwWTATBgcqhkjOPQIB
+  BggqhkjOPQMBBwNCAASKjFCvAt3G6w2GppyTEpNFzwchyV2pNYL2Ca0H8ShDuUEM
+  3ONRnPelcwITVQ4A5C/H+5qWzvyLFRuiNbQB0MTCMAoGCCqGSM49BAMCA0gAMEUC
+  IQDSYOKHW2XEYsGgin9F0rcvagwFR0iGslc/JASAbJ+t1wIgapYqe5zuEAR/JQ+P
+  2QnoOVUeMXwDwpj9Fj6GaZcnIEyCL1ggIGpDcE6kqfCqpDWG8SWZtI+wuVhhY+nj
+  tlo2Ny4TDnmCBVgg/CH+PV54HKflKJfZn6YfgfFgV1TA860DfTRxNZ9ouxSBWQEe
+  MIIBGjCBwaADAgECAgMB4kAwCgYIKoZIzj0EAwIwFjEUMBIGA1UEAwwLVGVzdCBE
+  ZXZpY2UwHhcNMjQwMTAxMDAwMDAwWhcNMzQwMTAxMDAwMDAwWjAWMRQwEgYDVQQD
+  DAtUZXN0IERldmljZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABIqMUK8C3cbr
+  DYamnJMSk0XPByHJXak1gvYJrQfxKEO5QQzc41Gc96VzAhNVDgDkL8f7mpbO/IsV
+  G6I1tAHQxMIwCgYIKoZIzj0EAwIDSAAwRQIhANJg4odbZcRiwaCKf0XSty9qDAVH
+  SIayVz8kBIBsn63XAiBqlip7nO4QBH8lD4/ZCeg5VR4xfAPCmP0WPoZplycgTIHS
+  hEOhASagWFaEYGBggwoDWE2lInggc8/NVYPl3+LqRlN5Zp7+pX9ckLpaIOq8JLqb
+  Z3CMeHoheCCuhk9H3dzehSmSvzKXCecYRpf9jNSZWIbH9imm0pcEUSABAQIDJlhA
+  W2JW/OTAp2hiU3gG6orEASO6XsBD97yQLbY6lAY80RwfFOEgM4+KiLiCOmYWWxIM
+  GMjJyoGICJooh2vZzFbHxA==
+  -----END OWNERSHIP VOUCHER-----
   """
 
   @sample_load_params %{
@@ -52,27 +77,25 @@ defmodule Astarte.PairingWeb.Controllers.OwnershipVoucherControllerTest do
     test "returns 200 with the owner public key on a valid matching key", context do
       %{auth_conn: conn, register_path: path, realm_name: realm_name} = context
 
-      stub(Secrets, :create_namespace, fn ^realm_name, :es256 ->
-        {:ok, "fdo_owner_keys/#{realm_name}/ecdsa-p256"}
-      end)
+      {:ok, owner_cose_key} = COSE.Keys.from_pem(@sample_private_key_pem)
+      {:ok, namespace} = Secrets.create_namespace(realm_name, :es256)
+      :ok = Secrets.import_key(@sample_key_name, :es256, owner_cose_key, namespace: namespace)
+      {:ok, %Key{public_pem: expected_public_key}} = Secrets.get_key(@sample_key_name, namespace: namespace)
 
-      stub(Secrets, :get_key, fn @sample_key_name, _opts ->
-        {:ok,
-         %Key{
-           name: @sample_key_name,
-           namespace: "fdo_owner_keys/#{realm_name}/ecdsa-p256",
-           alg: :es256,
-           public_pem: @sample_owner_public_key_pem
-         }}
-      end)
+      params = %{
+        data: %{
+          "ownership_voucher" => @sample_ownership_voucher_pem,
+          "key_name" => @sample_key_name,
+          "key_algorithm" => "es256"
+        }
+      }
 
       body =
         conn
-        |> post(path, @sample_load_params)
+        |> post(path, params)
         |> json_response(200)
 
-      assert get_in(body, ["data", "public_key"]) == @sample_owner_public_key_pem
-      assert get_in(body, ["data", "guid"]) == UUID.binary_to_string!(sample_device_guid())
+      assert get_in(body, ["data", "public_key"]) == expected_public_key
     end
 
     test "returns 422 when the ownership_voucher field is missing", context do

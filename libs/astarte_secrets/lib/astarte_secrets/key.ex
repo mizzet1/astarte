@@ -68,9 +68,8 @@ defimpl COSE.Keys.Key, for: Astarte.Secrets.Key do
     %Key{name: name, namespace: namespace, alg: algorithm} = key
     opts = [namespace: namespace]
 
-    with :error <- Secrets.sign(name, to_be_signed, algorithm, digest_type, opts) do
-      {:error, :signature_error}
-    end
+    {:ok, signature} = Secrets.sign(name, to_be_signed, algorithm, digest_type, opts)
+    signature
   end
 
   def verify(_key, _digest_type, _to_be_verified, _signature) do

@@ -48,15 +48,18 @@ defmodule Astarte.PairingWeb.OwnershipVoucherController do
          :ok <-
            TO0.claim_ownership_voucher(
              realm_name,
-             req.decoded_ownership_voucher,
-             req.extracted_owner_key
+             dbg(req.decoded_ownership_voucher),
+             dbg(req.extracted_owner_key)
            ) do
+
       json(conn, %{
         data: %{
           public_key: req.extracted_owner_key.public_pem,
           guid: UUID.binary_to_string!(req.device_guid)
         }
       })
+    else
+      error -> error
     end
   end
 

@@ -63,26 +63,33 @@ defmodule Astarte.FDO.Rendezvous do
         "error during owner sign message: unexpected response #{inspect(response)}"
         |> Logger.error()
 
-        :error
+        {:error, :invalid_accept_owner_response}
 
       {:error, reason} ->
         "error during owner sign message: http error #{inspect(reason)}"
         |> Logger.error()
 
-        :error
+        {:error, :invalid_accept_owner_response}
     end
   end
 
   defp verify_accept_owner_response(accept_owner_body) do
-    with {:ok, message, _} <- CBOR.decode(accept_owner_body),
-         [wait_seconds] when is_integer(wait_seconds) <- message do
-      {:ok, wait_seconds}
-    else
-      _ ->
-        "error during owner sign message: invalid response body #{inspect(accept_owner_body)}"
+    case CBOR.decode(accept_owner_body) do
+      {:ok, [wait_seconds], _} when is_integer(wait_seconds) ->
+        {:ok, wait_seconds}
+
+      {:ok, [error_code, _prev_msg_id, error_string, _ts, _uuid], _}
+      when is_integer(error_code) and is_binary(error_string) ->
+        "error during owner sign message: FDO error from rendezvous server: #{error_string}"
         |> Logger.error()
 
-        :error
+        {:error, {:fdo_rendezvous_error, error_string}}
+
+      _ ->
+        "error during owner sign message: invalid response body #{inspect(accept_owner_body, limit: :infinity)}"
+        |> Logger.error()
+
+        {:error, :invalid_accept_owner_response}
     end
   end
 
@@ -95,13 +102,13 @@ defmodule Astarte.FDO.Rendezvous do
         "error during hello message: unexpected response #{inspect(response)}"
         |> Logger.error()
 
-        :error
+        {:error, :hello_error}
 
       {:error, reason} ->
         "error during hello message: http error #{inspect(reason)}"
         |> Logger.error()
 
-        :error
+        {:error, :hello_error}
     end
   end
 
@@ -114,7 +121,7 @@ defmodule Astarte.FDO.Rendezvous do
         "error during error message: invalid nonce #{inspect(reason)}"
         |> Logger.error()
 
-        :error
+        {:error, :hello_error}
     end
   end
 
