@@ -1,0 +1,230 @@
+name: Release Please
+
+on:
+  push:
+    branches:
+      - master
+      - "release-[0-9]+.[0-9]+"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    outputs:
+      # Apps
+      astarte_appengine_api--release_created: ${{ steps.release.outputs['apps/astarte_appengine_api--release_created'] }}
+      astarte_appengine_api--tag_name: ${{ steps.release.outputs['apps/astarte_appengine_api--tag_name'] }}
+      astarte_data_updater_plant--release_created: ${{ steps.release.outputs['apps/astarte_data_updater_plant--release_created'] }}
+      astarte_data_updater_plant--tag_name: ${{ steps.release.outputs['apps/astarte_data_updater_plant--tag_name'] }}
+      astarte_housekeeping--release_created: ${{ steps.release.outputs['apps/astarte_housekeeping--release_created'] }}
+      astarte_housekeeping--tag_name: ${{ steps.release.outputs['apps/astarte_housekeeping--tag_name'] }}
+      astarte_pairing--release_created: ${{ steps.release.outputs['apps/astarte_pairing--release_created'] }}
+      astarte_pairing--tag_name: ${{ steps.release.outputs['apps/astarte_pairing--tag_name'] }}
+      astarte_realm_management--release_created: ${{ steps.release.outputs['apps/astarte_realm_management--release_created'] }}
+      astarte_realm_management--tag_name: ${{ steps.release.outputs['apps/astarte_realm_management--tag_name'] }}
+      astarte_trigger_engine--release_created: ${{ steps.release.outputs['apps/astarte_trigger_engine--release_created'] }}
+      astarte_trigger_engine--tag_name: ${{ steps.release.outputs['apps/astarte_trigger_engine--tag_name'] }}
+      # Libs
+      astarte_data_access--release_created: ${{ steps.release.outputs['libs/astarte_data_access--release_created'] }}
+      astarte_data_access--tag_name: ${{ steps.release.outputs['libs/astarte_data_access--tag_name'] }}
+      astarte_events--release_created: ${{ steps.release.outputs['libs/astarte_events--release_created'] }}
+      astarte_events--tag_name: ${{ steps.release.outputs['libs/astarte_events--tag_name'] }}
+      astarte_fdo--release_created: ${{ steps.release.outputs['libs/astarte_fdo--release_created'] }}
+      astarte_fdo--tag_name: ${{ steps.release.outputs['libs/astarte_fdo--tag_name'] }}
+      astarte_fdo_core--release_created: ${{ steps.release.outputs['libs/astarte_fdo_core--release_created'] }}
+      astarte_fdo_core--tag_name: ${{ steps.release.outputs['libs/astarte_fdo_core--tag_name'] }}
+      astarte_generators--release_created: ${{ steps.release.outputs['libs/astarte_generators--release_created'] }}
+      astarte_generators--tag_name: ${{ steps.release.outputs['libs/astarte_generators--tag_name'] }}
+      astarte_rpc--release_created: ${{ steps.release.outputs['libs/astarte_rpc--release_created'] }}
+      astarte_rpc--tag_name: ${{ steps.release.outputs['libs/astarte_rpc--tag_name'] }}
+      astarte_secrets--release_created: ${{ steps.release.outputs['libs/astarte_secrets--release_created'] }}
+      astarte_secrets--tag_name: ${{ steps.release.outputs['libs/astarte_secrets--tag_name'] }}
+      # Tools
+      astarte_device_fleet_simulator--release_created: ${{ steps.release.outputs['tools/astarte_device_fleet_simulator--release_created'] }}
+      astarte_device_fleet_simulator--tag_name: ${{ steps.release.outputs['tools/astarte_device_fleet_simulator--tag_name'] }}
+      astarte_dev_tool--release_created: ${{ steps.release.outputs['tools/astarte_dev_tool--release_created'] }}
+      astarte_dev_tool--tag_name: ${{ steps.release.outputs['tools/astarte_dev_tool--tag_name'] }}
+      astarte_e2e--release_created: ${{ steps.release.outputs['tools/astarte_e2e--release_created'] }}
+      astarte_e2e--tag_name: ${{ steps.release.outputs['tools/astarte_e2e--tag_name'] }}
+      astarte_export--release_created: ${{ steps.release.outputs['tools/astarte_export--release_created'] }}
+      astarte_export--tag_name: ${{ steps.release.outputs['tools/astarte_export--tag_name'] }}
+      astarte_import--release_created: ${{ steps.release.outputs['tools/astarte_import--release_created'] }}
+      astarte_import--tag_name: ${{ steps.release.outputs['tools/astarte_import--tag_name'] }}
+    steps:
+      - uses: googleapis/release-please-action@5c625bfb5d1ff62eadeeb3772007f7f66fdcf071 # v4.4.1
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+  # --- Post-release: Docker Hub for apps/services ---
+  publish-docker:
+    name: Publish Docker image (${{ matrix.app }})
+    needs: release-please
+    if: |
+      needs.release-please.outputs.astarte_appengine_api--release_created == 'true' ||
+      needs.release-please.outputs.astarte_data_updater_plant--release_created == 'true' ||
+      needs.release-please.outputs.astarte_housekeeping--release_created == 'true' ||
+      needs.release-please.outputs.astarte_pairing--release_created == 'true' ||
+      needs.release-please.outputs.astarte_realm_management--release_created == 'true' ||
+      needs.release-please.outputs.astarte_trigger_engine--release_created == 'true'
+    runs-on: ${{ matrix.platform.os }}
+    permissions:
+      packages: write
+      contents: read
+      attestations: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os: ubuntu-22.04
+            platform: linux/amd64
+            platform-pair: linux-amd64
+          - os: ubuntu-22.04-arm
+            platform: linux/arm64
+            platform-pair: linux-arm64
+        include:
+          - app: astarte_appengine_api
+            release_created: ${{ needs.release-please.outputs.astarte_appengine_api--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_appengine_api--tag_name }}
+          - app: astarte_data_updater_plant
+            release_created: ${{ needs.release-please.outputs.astarte_data_updater_plant--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_data_updater_plant--tag_name }}
+          - app: astarte_housekeeping
+            release_created: ${{ needs.release-please.outputs.astarte_housekeeping--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_housekeeping--tag_name }}
+          - app: astarte_pairing
+            release_created: ${{ needs.release-please.outputs.astarte_pairing--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_pairing--tag_name }}
+          - app: astarte_realm_management
+            release_created: ${{ needs.release-please.outputs.astarte_realm_management--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_realm_management--tag_name }}
+          - app: astarte_trigger_engine
+            release_created: ${{ needs.release-please.outputs.astarte_trigger_engine--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_trigger_engine--tag_name }}
+    steps:
+      - name: Skip if this app was not released
+        if: matrix.release_created != 'true'
+        run: echo "No release for ${{ matrix.app }}, skipping." && exit 0
+
+      - name: Check out the repo
+        if: matrix.release_created == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag_name }}
+
+      - name: Log in to Docker Hub
+        if: matrix.release_created == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+
+      - name: Set up Docker Buildx
+        if: matrix.release_created == 'true'
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract version from tag
+        if: matrix.release_created == 'true'
+        id: meta
+        run: |
+          # tag_name is like "astarte_appengine_api/1.4.0"
+          VERSION="${{ matrix.tag_name }}"
+          VERSION="${VERSION##*/}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        if: matrix.release_created == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          build-args: SERVICE=${{ matrix.app }}
+          push: true
+          tags: |
+            astarte/${{ matrix.app }}:${{ steps.meta.outputs.version }}
+            astarte/${{ matrix.app }}:latest
+          platforms: ${{ matrix.platform.platform }}
+
+  # --- Post-release: Hex.pm for libraries ---
+  publish-hex:
+    name: Publish to Hex.pm (${{ matrix.package }})
+    needs: release-please
+    if: |
+      needs.release-please.outputs.astarte_data_access--release_created == 'true' ||
+      needs.release-please.outputs.astarte_events--release_created == 'true' ||
+      needs.release-please.outputs.astarte_fdo--release_created == 'true' ||
+      needs.release-please.outputs.astarte_fdo_core--release_created == 'true' ||
+      needs.release-please.outputs.astarte_generators--release_created == 'true' ||
+      needs.release-please.outputs.astarte_rpc--release_created == 'true' ||
+      needs.release-please.outputs.astarte_secrets--release_created == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: astarte_data_access
+            path: libs/astarte_data_access
+            release_created: ${{ needs.release-please.outputs.astarte_data_access--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_data_access--tag_name }}
+          - package: astarte_events
+            path: libs/astarte_events
+            release_created: ${{ needs.release-please.outputs.astarte_events--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_events--tag_name }}
+          - package: astarte_fdo
+            path: libs/astarte_fdo
+            release_created: ${{ needs.release-please.outputs.astarte_fdo--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_fdo--tag_name }}
+          - package: astarte_fdo_core
+            path: libs/astarte_fdo_core
+            release_created: ${{ needs.release-please.outputs.astarte_fdo_core--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_fdo_core--tag_name }}
+          - package: astarte_generators
+            path: libs/astarte_generators
+            release_created: ${{ needs.release-please.outputs.astarte_generators--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_generators--tag_name }}
+          - package: astarte_rpc
+            path: libs/astarte_rpc
+            release_created: ${{ needs.release-please.outputs.astarte_rpc--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_rpc--tag_name }}
+          - package: astarte_secrets
+            path: libs/astarte_secrets
+            release_created: ${{ needs.release-please.outputs.astarte_secrets--release_created }}
+            tag_name: ${{ needs.release-please.outputs.astarte_secrets--tag_name }}
+    steps:
+      - name: Skip if this package was not released
+        if: matrix.release_created != 'true'
+        run: echo "No release for ${{ matrix.package }}, skipping." && exit 0
+
+      - name: Check out the repo
+        if: matrix.release_created == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.tag_name }}
+
+      - name: Set up Elixir
+        if: matrix.release_created == 'true'
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.16"
+          otp-version: "26"
+
+      - name: Install dependencies
+        if: matrix.release_created == 'true'
+        working-directory: ${{ matrix.path }}
+        run: mix deps.get
+
+      - name: Publish to Hex.pm
+        if: matrix.release_created == 'true'
+        working-directory: ${{ matrix.path }}
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes
