@@ -1,0 +1,78 @@
+name: Publish to Hex.pm
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish-hex:
+    name: Publish ${{ matrix.package }} to Hex.pm
+    # Only run for lib package tags, e.g. astarte_rpc/v1.4.1
+    if: |
+      startsWith(github.ref_name, 'astarte_data_access/') ||
+      startsWith(github.ref_name, 'astarte_events/') ||
+      startsWith(github.ref_name, 'astarte_fdo/') ||
+      startsWith(github.ref_name, 'astarte_fdo_core/') ||
+      startsWith(github.ref_name, 'astarte_generators/') ||
+      startsWith(github.ref_name, 'astarte_rpc/') ||
+      startsWith(github.ref_name, 'astarte_secrets/')
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: astarte_data_access
+            path: libs/astarte_data_access
+            tag_prefix: astarte_data_access/
+          - package: astarte_events
+            path: libs/astarte_events
+            tag_prefix: astarte_events/
+          - package: astarte_fdo
+            path: libs/astarte_fdo
+            tag_prefix: astarte_fdo/
+          - package: astarte_fdo_core
+            path: libs/astarte_fdo_core
+            tag_prefix: astarte_fdo_core/
+          - package: astarte_generators
+            path: libs/astarte_generators
+            tag_prefix: astarte_generators/
+          - package: astarte_rpc
+            path: libs/astarte_rpc
+            tag_prefix: astarte_rpc/
+          - package: astarte_secrets
+            path: libs/astarte_secrets
+            tag_prefix: astarte_secrets/
+    steps:
+      - name: Check if this tag belongs to this package
+        id: check
+        run: |
+          if [[ "${{ github.ref_name }}" == ${{ matrix.tag_prefix }}* ]]; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "match=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check out the repo
+        if: steps.check.outputs.match == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Set up Elixir
+        if: steps.check.outputs.match == 'true'
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: "1.16"
+          otp-version: "26"
+
+      - name: Install dependencies
+        if: steps.check.outputs.match == 'true'
+        working-directory: ${{ matrix.path }}
+        run: mix deps.get
+
+      - name: Publish to Hex.pm
+        if: steps.check.outputs.match == 'true'
+        working-directory: ${{ matrix.path }}
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: mix hex.publish --yes
