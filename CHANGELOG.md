@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## Unreleased
 
+## [1.4.2-rc.0](https://github.com/mizzet1/astarte/compare/v1.4.1-rc.0...v1.4.2-rc.0) (2026-04-17)
+
+
+### Bug Fixes
+
+* **ci:** remove stale trailing content from release-please-config.json ([1508b21](https://github.com/mizzet1/astarte/commit/1508b21bd269982ee8894ea70ee22b534c4eb8f6))
+* **dup:** trigger release-please test ([3fcbc0f](https://github.com/mizzet1/astarte/commit/3fcbc0fa0ac78d0f7e854c011cb3a06a4a31a9ac))
+
 ## [1.4.0-rc.0] - 2026-04-08
 
 ### Added
