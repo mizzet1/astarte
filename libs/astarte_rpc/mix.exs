@@ -22,7 +22,7 @@ defmodule Astarte.RPC.MixProject do
   def project do
     [
       app: :astarte_rpc,
-      version: "1.4.1-rc.0",
+      version: "1.4.1-rc.0", # x-release-please-version
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
       test_coverage: [tool: ExCoveralls],

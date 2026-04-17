@@ -21,7 +21,7 @@ defmodule Astarte.Core.Generators.MixProject do
   def project do
     [
       app: :astarte_generators,
-      version: "1.4.1-rc.0",
+      version: "1.4.1-rc.0", # x-release-please-version
       elixir: "~> 1.15.7",
       elixirc_paths: elixirc_paths(Mix.env()),
       start_permanent: Mix.env() == :prod,

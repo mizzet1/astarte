@@ -1,20 +1,3 @@
 {
-  "apps/astarte_appengine_api": "1.4.1-rc.0",
-  "apps/astarte_data_updater_plant": "1.4.1-rc.0",
-  "apps/astarte_housekeeping": "1.4.1-rc.0",
-  "apps/astarte_pairing": "1.4.1-rc.0",
-  "apps/astarte_realm_management": "1.4.1-rc.0",
-  "apps/astarte_trigger_engine": "1.4.1-rc.0",
-  "libs/astarte_data_access": "1.4.1-rc.0",
-  "libs/astarte_events": "1.4.1-rc.0",
-  "libs/astarte_fdo": "0.1.1",
-  "libs/astarte_fdo_core": "0.1.1",
-  "libs/astarte_generators": "1.4.1-rc.0",
-  "libs/astarte_rpc": "1.4.1-rc.0",
-  "libs/astarte_secrets": "1.4.1-rc.0",
-  "tools/astarte_device_fleet_simulator": "1.4.1-rc.0",
-  "tools/astarte_dev_tool": "0.1.1",
-  "tools/astarte_e2e": "1.4.1-rc.0",
-  "tools/astarte_export": "1.4.1-rc.0",
-  "tools/astarte_import": "1.4.1-rc.0"
+  ".": "1.4.1-rc.0"
 }
