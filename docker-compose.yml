@@ -107,9 +107,14 @@ services:
       APPENGINE_API_ROOMS_AMQP_CLIENT_HOST: "rabbitmq"
     restart: on-failure
     depends_on:
-      - "rabbitmq"
-      - "scylla"
-      - "traefik"
+      rabbitmq:
+        condition: service_started
+      scylla:
+        condition: service_started
+      traefik:
+        condition: service_started
+      vernemq:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.astarte-appengine-api.rule=Host(`api.${DOCKER_COMPOSE_ASTARTE_BASE_DOMAIN}`) && PathPrefix(`/appengine`)"
@@ -137,8 +142,12 @@ services:
       DATA_UPDATER_PLANT_AMQP_PRODUCER_VIRTUAL_HOST: "/"
     restart: on-failure
     depends_on:
-      - "rabbitmq"
-      - "scylla"
+      rabbitmq:
+        condition: service_started
+      scylla:
+        condition: service_started
+      vernemq:
+        condition: service_healthy
 
   astarte-trigger-engine:
     image: astarte/astarte_trigger_engine:1.4-snapshot
@@ -305,6 +314,12 @@ services:
       - "traefik"
     # Restart if we fail
     restart: on-failure
+    healthcheck:
+      test: ["CMD", "vmq-admin", "cluster", "show"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
     labels:
       - "traefik.enable=true"
       - "traefik.tcp.routers.vernemq.rule=HostSNI(`broker.${DOCKER_COMPOSE_ASTARTE_BASE_DOMAIN}`)"
