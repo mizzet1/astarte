@@ -93,6 +93,32 @@ defmodule Astarte.Housekeeping.Realms.QueriesTest do
       assert {:ok, _} = Database.lightweight_transaction_check(astarte_keyspace)
     end
 
+    test "defaults to NetworkTopologyStrategy derived from the live Scylla topology when no replication strategy is configured" do
+      # When the replication strategy env var is not set, Config returns `nil`
+      # and `create_astarte_keyspace/0` is expected to derive the replication
+      # map from the actual ScyllaDB network topology, instead of falling back
+      # to SimpleStrategy/RF=1. The test cluster has a single node in
+      # `datacenter1`, so the resulting map must be %{"datacenter1" => 1} and
+      # the keyspace class must be NetworkTopologyStrategy.
+      Config
+      |> expect(:astarte_keyspace_replication_strategy!, fn -> nil end)
+      |> reject(:astarte_keyspace_replication_factor!, 0)
+      |> reject(:astarte_keyspace_network_replication_map!, 0)
+
+      assert :ok = Queries.initialize_database()
+
+      astarte_keyspace = Realm.astarte_keyspace_name()
+
+      replication =
+        from(k in "system_schema.keyspaces", select: k.replication)
+        |> Repo.get_by!(keyspace_name: astarte_keyspace)
+
+      {datacenter_replication, ""} = replication[@datacenter] |> Integer.parse()
+
+      assert replication["class"] == "org.apache.cassandra.locator.NetworkTopologyStrategy"
+      assert datacenter_replication == 1
+    end
+
     test "returns database error" do
       Mimic.stub(Xandra, :execute, fn _, _, _, _ -> {:error, %Xandra.Error{}} end)
       assert {:error, :database_error} = Queries.initialize_database()

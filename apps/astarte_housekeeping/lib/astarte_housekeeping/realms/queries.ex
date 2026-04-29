@@ -1232,13 +1232,8 @@ defmodule Astarte.Housekeeping.Realms.Queries do
     keyspace = Realm.astarte_keyspace_name()
     consistency = Consistency.domain_model(:write)
 
-    replication =
-      case Config.astarte_keyspace_replication_strategy!() do
-        :simple_strategy -> Config.astarte_keyspace_replication_factor!()
-        :network_topology_strategy -> Config.astarte_keyspace_network_replication_map!()
-      end
-
-    with {:ok, replication_map_str} <- build_replication_map_str(replication),
+    with {:ok, replication} <- astarte_keyspace_replication(),
+         {:ok, replication_map_str} <- build_replication_map_str(replication),
          :ok <- do_create_astarte_keyspace(keyspace, replication_map_str, consistency) do
       :ok
     else
@@ -1247,6 +1242,52 @@ defmodule Astarte.Housekeeping.Realms.Queries do
           tag: "astarte_keyspace_creation_failed"
         )
 
+        {:error, reason}
+    end
+  end
+
+  defp astarte_keyspace_replication do
+    case Config.astarte_keyspace_replication_strategy!() do
+      :simple_strategy ->
+        {:ok, Config.astarte_keyspace_replication_factor!()}
+
+      :network_topology_strategy ->
+        {:ok, Config.astarte_keyspace_network_replication_map!()}
+
+      nil ->
+        # No explicit replication has been configured, so the replication
+        # map is derived from the current ScyllaDB network topology
+        fetch_network_topology()
+    end
+  end
+
+  def fetch_network_topology do
+    with {:ok, local_datacenter} <- get_local_datacenter(),
+         {:ok, peer_datacenters} <- fetch_peer_datacenters() do
+      peer_counts = Enum.frequencies(peer_datacenters)
+
+      # `system.peers` does not include the local node, so 1 is added to the local
+      # datacenter count to account for it (same as in
+      # `check_replication_for_datacenter/3`).
+      local_dc_node_count = Map.get(peer_counts, local_datacenter, 0) + 1
+      topology = Map.put(peer_counts, local_datacenter, local_dc_node_count)
+
+      {:ok, topology}
+    end
+  end
+
+  defp fetch_peer_datacenters do
+    query =
+      from sp in "system.peers",
+        select: sp.data_center
+
+    opts = [consistency: Consistency.domain_model(:read)]
+
+    case Repo.fetch_all(query, opts) do
+      {:ok, datacenters} ->
+        {:ok, datacenters}
+
+      {:error, reason} ->
         {:error, reason}
     end
   end
