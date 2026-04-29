@@ -18,6 +18,7 @@
 
 Mimic.copy(Astarte.DataAccess.Config)
 Mimic.copy(Astarte.DataAccess.Health)
+Mimic.copy(Astarte.DataAccess.KvStore)
 Mimic.copy(Astarte.DataAccess.Repo)
 Mimic.copy(Astarte.Events.AMQP)
 Mimic.copy(Astarte.Events.AMQP.Vhost)
