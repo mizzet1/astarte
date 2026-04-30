@@ -36,7 +36,9 @@ defmodule Astarte.RealmManagementWeb.ApiSpec.Schemas.TriggerDeliveryPolicyConfig
       },
       maximum_capacity: %Schema{
         type: :integer,
-        description: "Maximum size of the event queue of the trigger delivery policy."
+        description: "Maximum size of the event queue of the trigger delivery policy.",
+        minimum: 1,
+        maximum: 1_000_000
       },
       error_handlers: %Schema{
         type: :array,
@@ -48,12 +50,22 @@ defmodule Astarte.RealmManagementWeb.ApiSpec.Schemas.TriggerDeliveryPolicyConfig
       event_ttl: %Schema{
         type: :integer,
         description:
-          "The amount of time (in milliseconds) an event will be retained in the event queue."
+          "The amount of time (in seconds) an event will be retained in the event queue.",
+        minimum: 1,
+        maximum: 86_400
       },
       retry_times: %Schema{
         type: :integer,
         description:
-          "The amount of times an event will be requeued if delivery fails and the related handler has 'retry' strategy."
+          "The amount of times an event will be requeued if delivery fails and the related handler has 'retry' strategy.",
+        minimum: 1,
+        maximum: 100
+      },
+      prefetch_count: %Schema{
+        type: :integer,
+        description: "The maximum number of unacknowledged event messages a consumer can hold.",
+        minimum: 1,
+        maximum: 300
       }
     },
     required: [:name, :maximum_capacity, :error_handlers],

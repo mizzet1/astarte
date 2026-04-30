@@ -46,6 +46,7 @@ defmodule Astarte.AppEngine.APIWeb.Router do
 
   pipeline :swagger do
     plug :maybe_halt_swagger
+    plug OpenApiSpex.Plug.PutApiSpec, module: Astarte.AppEngine.APIWeb.ApiSpec
   end
 
   scope "/v1/:realm_name", Astarte.AppEngine.APIWeb do
@@ -175,10 +176,8 @@ defmodule Astarte.AppEngine.APIWeb.Router do
   scope "/swagger" do
     pipe_through :swagger
 
-    forward "/", PhoenixSwagger.Plug.SwaggerUI,
-      otp_app: :astarte_appengine_api,
-      swagger_file: "astarte_appengine_api.yaml",
-      disable_validator: true
+    get "/openapi", OpenApiSpex.Plug.RenderSpec, []
+    forward "/", OpenApiSpex.Plug.SwaggerUI, path: "/swagger/openapi"
   end
 
   scope "/version", Astarte.AppEngine.APIWeb do
