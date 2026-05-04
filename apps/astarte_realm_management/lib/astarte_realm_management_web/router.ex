@@ -29,7 +29,7 @@ defmodule Astarte.RealmManagementWeb.Router do
   scope "/v1/:realm_name", Astarte.RealmManagementWeb do
     pipe_through :api
 
-    get "/version", VersionController, :show
+    get "/version", VersionController, :show_with_realm
 
     get "/interfaces/:interface_name", InterfaceVersionController, :index
     resources "/interfaces", InterfaceController, only: [:index, :create]

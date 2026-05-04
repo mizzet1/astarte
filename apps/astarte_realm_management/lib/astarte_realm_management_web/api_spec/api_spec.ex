@@ -116,6 +116,10 @@ defmodule Astarte.RealmManagementWeb.ApiSpec do
             description: "User documentation",
             url: "https://docs.astarte-platform.org/astarte/1.0/060-triggers.html"
           }
+        },
+        %Tag{
+          name: "version",
+          description: "Retrieve version information of the API."
         }
       ]
     }
