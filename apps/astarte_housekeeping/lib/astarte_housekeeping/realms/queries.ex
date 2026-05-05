@@ -59,6 +59,35 @@ defmodule Astarte.Housekeeping.Realms.Queries do
     end
   end
 
+  def fetch_keyspace_replication do
+    astarte_keyspace = Realm.astarte_keyspace_name()
+    consistency = Consistency.domain_model(:read)
+
+    result =
+      KvStore.fetch_value("astarte", "db_default_replication", :binary,
+        error: :replication_not_found,
+        consistency: consistency,
+        prefix: astarte_keyspace
+      )
+
+    case result do
+      {:ok, binary_replication} ->
+        try do
+          {:ok, :erlang.binary_to_term(binary_replication)}
+        rescue
+          _ ->
+            Logger.error("Failed to deserialize replication data from KvStore",
+              tag: "corrupted_replication_data"
+            )
+
+            {:error, :corrupted_replication_data}
+        end
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
   def get_realm(realm_name) do
     keyspace_name = Realm.keyspace_name(realm_name)
     do_get_realm(realm_name, keyspace_name)
@@ -1203,8 +1232,12 @@ defmodule Astarte.Housekeeping.Realms.Queries do
       value_type: :binary
     }
 
-    with {:error, xandra_error} <- KvStore.insert(kv_store, opts) do
-      raise xandra_error
+    case KvStore.insert(kv_store, opts) do
+      :ok ->
+        :ok
+
+      {:error, xandra_error} ->
+        {:error, xandra_error}
     end
   end
 
