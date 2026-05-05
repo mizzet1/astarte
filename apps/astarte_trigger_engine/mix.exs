@@ -51,7 +51,7 @@ defmodule Astarte.TriggerEngine.Mixfile do
 
   defp astarte_required_modules(_) do
     [
-      {:astarte_core, path: "../../libs/astarte_core", override: true},
+      {:astarte_core, path: astarte_lib("astarte_core"), override: true},
       {:astarte_generators, github: "astarte-platform/astarte_generators", only: [:dev, :test]}
     ]
   end
