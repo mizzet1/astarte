@@ -27,7 +27,7 @@ defmodule AstarteExport.MixProject do
 
   defp deps do
     [
-      {:astarte_core, github: "astarte-platform/astarte_core", tag: "v1.3.0-rc.1"},
+      {:astarte_core, path: astarte_lib("astarte_core"), override: true},
       {:xandra, "~> 0.19.4"},
       {:exandra, "~>0.16.0"},
       {:distillery, "~> 2.1.1"},
