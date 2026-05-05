@@ -29,6 +29,14 @@ defmodule Astarte.Core.Mapping do
   alias Astarte.Core.Mapping.Retention
   alias Astarte.Core.Mapping.ValueType
 
+  # Force compilation ordering: ecto 3.12+ calls Code.ensure_compiled/1 on these types
+  # at macro-expansion time. Without require, Mix may compile mapping.ex first (fresh
+  # build / Docker), before the .beam files exist, causing an ArgumentError.
+  require Astarte.Core.Mapping.DatabaseRetentionPolicy
+  require Astarte.Core.Mapping.Reliability
+  require Astarte.Core.Mapping.Retention
+  require Astarte.Core.Mapping.ValueType
+
   @placeholder_regex ~r/%{[a-zA-Z_]+[a-zA-Z0-9_]*}/
 
   @required_fields [

@@ -31,6 +31,11 @@ defmodule Astarte.Core.Interface do
   alias Astarte.Core.Interface.Type
   alias Astarte.Core.Mapping
 
+  # Force compilation ordering for ecto 3.12+ (see mapping.ex for details)
+  require Astarte.Core.Interface.Aggregation
+  require Astarte.Core.Interface.Ownership
+  require Astarte.Core.Interface.Type
+
   @required_fields [
     :interface_name,
     :version_major,
