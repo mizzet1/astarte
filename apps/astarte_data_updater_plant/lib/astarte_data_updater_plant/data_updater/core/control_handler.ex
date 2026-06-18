@@ -418,6 +418,107 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
     end
   end
 
+  def handle_control(state, "/keyAgreement/2", payload, timestamp) do
+    new_state = TimeBasedActions.execute_time_based_actions(state, timestamp)
+
+    case SecretHash.cbor_decode(payload) do
+      {:ok, %SecretHash{key_hash: received_hash}} ->
+        :telemetry.execute(
+          [:astarte, :data_updater_plant, :control_handler, :secret_hash_received],
+          %{payload_size: byte_size(payload)},
+          %{realm: new_state.realm}
+        )
+
+        current_secret = new_state.shared_secret
+
+        # Securely validate the hash
+        is_valid_hash? =
+          if is_binary(current_secret) do
+            expected_hash = :crypto.hash(:sha256, current_secret)
+            :crypto.hash_equals(expected_hash, received_hash)
+          else
+            false
+          end
+
+        if is_valid_hash? do
+          Logger.debug(
+            "[keyAgreement/2] SecretHash matched. Shared secret is valid.",
+            tag: "secret_hash_match"
+          )
+
+          # TODO: Implement and send HashOk (3)
+
+          final_state = %{
+            new_state
+            | total_received_msgs: new_state.total_received_msgs + 1,
+              total_received_bytes: new_state.total_received_bytes + byte_size(payload)
+          }
+
+          {:ack, :ok, final_state}
+        else
+          Logger.warning(
+            "[keyAgreement/2] SecretHash mismatch or missing shared secret. Initiating new key exchange.",
+            tag: "secret_hash_mismatch"
+          )
+
+          # Trigger a new key exchange on failure
+          case send_init_exchange(new_state) do
+            {:ok, state_with_pending_exchange} ->
+              final_state = %{
+                state_with_pending_exchange
+                | total_received_msgs: new_state.total_received_msgs + 1,
+                  total_received_bytes: new_state.total_received_bytes + byte_size(payload)
+              }
+
+              # TODO: Implement ExchangeFailed to signal why the key exchange failed
+
+              {:ack, :ok, final_state}
+
+            {:error, reason} ->
+              context = %{
+                state: new_state,
+                payload: payload,
+                path: "/keyAgreement/2",
+                timestamp: timestamp
+              }
+
+              error = %{
+                message: "Failed to send InitExchange after SecretHash mismatch: #{inspect(reason)}",
+                logger_metadata: [tag: "secret_hash_init_exchange_error"],
+                error_name: "secret_hash_init_exchange_error",
+                error: :secret_hash_init_exchange_error
+              }
+
+              Core.Error.handle_error(context, error)
+          end
+        end
+
+      {:error, reason} ->
+        Logger.warning(
+          "[keyAgreement/2] payload validation failed: #{inspect(reason)}",
+          tag: "secret_hash_invalid_payload"
+        )
+
+        context = %{
+          state: new_state,
+          payload: payload,
+          path: "/keyAgreement/2",
+          timestamp: timestamp
+        }
+
+        error = %{
+          message:
+            "Invalid keyAgreement/2 payload (#{inspect(reason)}): " <>
+              inspect(Base.encode64(payload)),
+          logger_metadata: [tag: "secret_hash_error"],
+          error_name: "secret_hash_error",
+          error: :secret_hash_error
+        }
+
+        Core.Error.handle_error(context, error)
+    end
+  end
+
   defp decode_payload(%State{capabilities: capabilities} = _state, payload) do
     case Map.get(capabilities, :purge_properties_compression_format) do
       :zlib ->

@@ -51,9 +51,20 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.SecretHash do
   """
   @spec new(non_neg_integer(), binary()) :: t()
   def new(seq_num, shared_secret) when is_integer(seq_num) and is_binary(shared_secret) do
-    hash = :crypto.hash(:sha256, shared_secret)
-    %SecretHash{seq_num: seq_num, key_hash: hash}
+    %SecretHash{seq_num: seq_num, key_hash: compute_hash(shared_secret)}
   end
+
+  @doc """
+  Verifies if the provided raw shared secret matches the hash within the `SecretHash` message.
+  """
+  @spec verify(t(), binary() | any()) :: boolean()
+  def verify(%SecretHash{key_hash: received_hash}, shared_secret) when is_binary(shared_secret) do
+    expected_hash = compute_hash(shared_secret)
+    :crypto.hash_equals(expected_hash, received_hash)
+  end
+
+  # Fallback for nil, maps, or other invalid shared_secret types
+  def verify(%SecretHash{}, _invalid_secret), do: false
 
   @doc """
   Returns the list representation of a `%SecretHash{}` ready for CBOR encoding.
@@ -81,6 +92,11 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.SecretHash do
       {:ok, raw, _rest} -> decode(raw)
       {:error, _reason} -> {:error, :invalid_payload}
     end
+  end
+
+  @spec compute_hash(binary()) :: binary()
+  defp compute_hash(secret) do
+    :crypto.hash(:sha256, secret)
   end
 
   defp decode([seq_num, key_hash_tag]) when is_integer(seq_num) and seq_num >= 0 do
