@@ -627,8 +627,8 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
     end
   end
 
-  describe "/keyAgreement/2 (SecretHash)" do
-    test "acks a valid SecretHash payload when hashes match", context do
+  describe "/keyAgreement/2" do
+    test "acks a valid SecretHash payload and sends HashOk when hashes match", context do
       %{
         state: state,
         valid_secret_hash_payload: payload,
@@ -645,6 +645,19 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
                alg: :ecdh_x25519_hkdf_sha256_aes_256_gcm
              }}
       }
+
+      # Expect exactly 1 publish for the HashOk message
+      expect(VMQPlugin, :publish, 1, fn topic, payload_bytes, qos ->
+        encoded_device_id = Astarte.Core.Device.encode_device_id(state.device_id)
+
+        assert topic == "#{state.realm}/#{encoded_device_id}/control/keyAgreement/3"
+        assert qos == 2
+
+        # Assert the HashOk payload correctly encoded the algorithm to 1
+        assert {:ok, [1], ""} = CBOR.decode(payload_bytes)
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
 
       assert {:ack, :ok, new_state} =
                ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
@@ -723,6 +736,96 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
                ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
 
       assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
+    end
+
+    test "logs error and acks message if sending HashOk fails", context do
+      %{
+        state: state,
+        valid_secret_hash_payload: payload,
+        shared_secret: shared_secret
+      } = context
+
+      state = %{
+        state
+        | encrypted_endpoints_key:
+            {:established,
+             %{
+               shared_secret: shared_secret,
+               alg: :ecdh_x25519_hkdf_sha256_aes_256_gcm
+             }}
+      }
+
+      # Mock publish failure
+      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+        {:error, :transport_failure}
+      end)
+
+      assert {{:ack, :ok, ^state}, log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
+               end)
+
+      assert log =~ "Failed to send HashOk: :transport_failure"
+    end
+
+    test "logs error and acks message if sending HashOk fails due to missing session", context do
+      %{
+        state: state,
+        valid_secret_hash_payload: payload,
+        shared_secret: shared_secret
+      } = context
+
+      state = %{
+        state
+        | encrypted_endpoints_key:
+            {:established,
+             %{
+               shared_secret: shared_secret,
+               alg: :ecdh_x25519_hkdf_sha256_aes_256_gcm
+             }}
+      }
+
+      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 0, remote_matches: 0}}
+      end)
+
+      assert {{:ack, :ok, ^state}, log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
+               end)
+
+      assert log =~ "Failed to send HashOk: :session_not_found"
+    end
+
+    test "discards message and logs error if renegotiation fails", context do
+      %{state: state, valid_secret_hash_payload: payload} = context
+
+      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+        {:error, :transport_failure}
+      end)
+
+      assert {{:discard, :transport_failure, ^state}, log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
+               end)
+
+      assert log =~ "Failed to renegotiate key: :transport_failure"
+    end
+
+    test "discards message and logs error if renegotiation fails due to missing session",
+         context do
+      %{state: state, valid_secret_hash_payload: payload} = context
+
+      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 0, remote_matches: 0}}
+      end)
+
+      assert {{:discard, :session_not_found, ^state}, log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
+               end)
+
+      assert log =~ "Failed to renegotiate key: :session_not_found"
     end
   end
 end

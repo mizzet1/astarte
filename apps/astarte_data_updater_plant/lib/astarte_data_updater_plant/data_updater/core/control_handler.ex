@@ -26,6 +26,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeResp
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HashOk
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.SecretHash
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.SharedSecret
@@ -287,37 +288,41 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
     Core.Error.handle_error(context, error)
   end
 
-  defp process_secret_hash(state, _seq_num, secret_hash_msg, payload, _timestamp) do
-    case state.encrypted_endpoints_key do
-      {:established, %{shared_secret: shared_secret, alg: _alg}} ->
-        # Ask the module to verify itself
-        case SecretHash.verify(secret_hash_msg, shared_secret) do
-          :ok ->
-            # TODO: Implement HashOk (3) transmission here.
-            # For now, we acknowledge the valid hash and move on.
-            Logger.debug(
-              "[keyAgreement/2] SecretHash matches. Skipping HashOk transmission for now."
-            )
+  defp process_secret_hash(
+         %{encrypted_endpoints_key: {:established, %{shared_secret: shared_secret, alg: alg}}} =
+           state,
+         _seq_num,
+         secret_hash_msg,
+         payload,
+         _timestamp
+       ) do
+    with :ok <- SecretHash.verify(secret_hash_msg, shared_secret),
+         :ok <- send_hash_ok(state.realm, state.device_id, alg) do
+      final_state = %{
+        state
+        | total_received_msgs: state.total_received_msgs + 1,
+          total_received_bytes: state.total_received_bytes + byte_size(payload)
+      }
 
-            final_state = %{
-              state
-              | total_received_msgs: state.total_received_msgs + 1,
-                total_received_bytes: state.total_received_bytes + byte_size(payload)
-            }
-
-            {:ack, :ok, final_state}
-
-          {:error, :hash_mismatch} ->
-            Logger.warning("[keyAgreement/2] SecretHash mismatch. Renegotiating.")
-            # TODO: implement ExchangeFailed message
-            renegotiate_handshake(state, payload)
-        end
-
-      _ ->
-        Logger.warning("[keyAgreement/2] No shared secret established. Renegotiating.")
+      {:ack, :ok, final_state}
+    else
+      {:error, :hash_mismatch} ->
+        Logger.warning("[keyAgreement/2] SecretHash mismatch. Renegotiating.")
         # TODO: implement ExchangeFailed message
         renegotiate_handshake(state, payload)
+
+      {:error, reason} ->
+        Logger.error("[keyAgreement/2] Failed to send HashOk: #{inspect(reason)}")
+        # TODO: implement ExchangeFailed message
+        {:ack, :ok, state}
     end
+  end
+
+  # Fallback clause for when no shared secret is established
+  defp process_secret_hash(state, _seq_num, _secret_hash_msg, payload, _timestamp) do
+    Logger.warning("[keyAgreement/2] No shared secret established. Renegotiating.")
+    # TODO: implement ExchangeFailed message
+    renegotiate_handshake(state, payload)
   end
 
   defp renegotiate_handshake(state, payload) do
@@ -435,6 +440,53 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
              {:initiate_handshake, init_exchange}
            ) do
       {:ok, %{state | encrypted_endpoints_key: new_key_state}}
+    end
+  end
+
+  defp send_hash_ok(realm, device_id, alg) do
+    topic = "#{realm}/#{Device.encode_device_id(device_id)}/control/keyAgreement/3"
+
+    hash_ok = HashOk.new(alg)
+    payload = HashOk.cbor_encode(hash_ok)
+
+    publish_start = System.monotonic_time()
+
+    case VMQPlugin.publish(topic, payload, 2) do
+      {:ok, %{local_matches: local, remote_matches: remote}} when local + remote >= 1 ->
+        :telemetry.execute(
+          [:astarte, :data_updater_plant, :control_handler, :key_agreement_hash_ok_send],
+          %{
+            duration: System.monotonic_time() - publish_start,
+            payload_size: byte_size(payload)
+          },
+          %{realm: realm, result: "success"}
+        )
+
+        :ok
+
+      {:ok, %{local_matches: 0, remote_matches: 0}} ->
+        :telemetry.execute(
+          [:astarte, :data_updater_plant, :control_handler, :key_agreement_hash_ok_send],
+          %{
+            duration: System.monotonic_time() - publish_start,
+            payload_size: byte_size(payload)
+          },
+          %{realm: realm, result: "no_matches"}
+        )
+
+        {:error, :session_not_found}
+
+      {:error, reason} ->
+        :telemetry.execute(
+          [:astarte, :data_updater_plant, :control_handler, :key_agreement_hash_ok_send],
+          %{
+            duration: System.monotonic_time() - publish_start,
+            payload_size: byte_size(payload)
+          },
+          %{realm: realm, result: "error"}
+        )
+
+        {:error, reason}
     end
   end
 
