@@ -301,41 +301,39 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
     Core.Error.handle_error(context, error)
   end
 
-  defp process_secret_hash(
-         %{encrypted_endpoints_key: {:established, %{shared_secret: shared_secret, alg: alg}}} =
-           state,
-         _seq_num,
-         secret_hash_msg,
-         payload,
-         _timestamp
-       ) do
-    with :ok <- SecretHash.verify(secret_hash_msg, shared_secret),
-         :ok <- send_hash_ok(state.realm, state.device_id, alg) do
-      final_state = %{
-        state
-        | total_received_msgs: state.total_received_msgs + 1,
-          total_received_bytes: state.total_received_bytes + byte_size(payload)
-      }
+  defp process_secret_hash(state, _seq_num, secret_hash_msg, payload, _timestamp) do
+    case HandshakeState.transition(
+           state.encrypted_endpoints_key,
+           {:verify_secret_hash, secret_hash_msg}
+         ) do
+      {:ok, {:established, %{alg: alg}} = new_key_state} ->
+        case send_hash_ok(state.realm, state.device_id, alg) do
+          :ok ->
+            final_state = %{
+              state
+              | encrypted_endpoints_key: new_key_state,
+                total_received_msgs: state.total_received_msgs + 1,
+                total_received_bytes: state.total_received_bytes + byte_size(payload)
+            }
 
-      {:ack, :ok, final_state}
-    else
-      {:error, :hash_mismatch} ->
+            {:ack, :ok, final_state}
+
+          {:error, reason} ->
+            Logger.error("[keyAgreement/2] Failed to send HashOk: #{inspect(reason)}")
+            # TODO: implement ExchangeFailed message
+            {:ack, :ok, state}
+        end
+
+      {:ok, {:failed, _reason} = new_key_state} ->
         Logger.warning("[keyAgreement/2] SecretHash mismatch. Renegotiating.")
         # TODO: implement ExchangeFailed message
-        renegotiate_handshake(state, payload)
+        renegotiate_handshake(%{state | encrypted_endpoints_key: new_key_state}, payload)
 
       {:error, reason} ->
-        Logger.error("[keyAgreement/2] Failed to send HashOk: #{inspect(reason)}")
+        Logger.warning("[keyAgreement/2] Transition failed: #{inspect(reason)}. Renegotiating.")
         # TODO: implement ExchangeFailed message
-        {:ack, :ok, state}
+        renegotiate_handshake(state, payload)
     end
-  end
-
-  # Fallback clause for when no shared secret is established
-  defp process_secret_hash(state, _seq_num, _secret_hash_msg, payload, _timestamp) do
-    Logger.warning("[keyAgreement/2] No shared secret established. Renegotiating.")
-    # TODO: implement ExchangeFailed message
-    renegotiate_handshake(state, payload)
   end
 
   defp renegotiate_handshake(state, payload) do

@@ -41,6 +41,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState 
   | `{:handshake_started}` | `{:receive_init, msg}`            | `:handshake_started`  |
   | `{:failed, _}`         | `{:receive_init, msg}`            | `:handshake_started`  |
   | `{:handshake_started}` | `{:handshake_completed, secret}`  | `:established`        |
+  | `{:established}`       | `{:verify_secret_hash, msg}`      | `:established` / `:failed` |
   | any                    | `{:error, reason}`                | `{:failed, reason}`   |
 
   Note that `{:receive_init, msg}` is intentionally **not** valid from
@@ -50,6 +51,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState 
   called and the new exchange is committed.
   """
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.SecretHash
 
   @type key_suite :: InitExchange.key_suite()
 
@@ -109,6 +111,20 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState 
       )
       when is_binary(shared_secret) do
     {:ok, {:established, %{shared_secret: shared_secret, alg: alg}}}
+  end
+
+  # SecretHash verification reconfirms the :established state or fails it.
+  def transition(
+        {:established, %{shared_secret: shared_secret}} = current_state,
+        {:verify_secret_hash, %SecretHash{} = msg}
+      ) do
+    case SecretHash.verify(msg, shared_secret) do
+      :ok ->
+        {:ok, current_state}
+
+      {:error, reason} ->
+        {:ok, {:failed, reason}}
+    end
   end
 
   # Error transition
