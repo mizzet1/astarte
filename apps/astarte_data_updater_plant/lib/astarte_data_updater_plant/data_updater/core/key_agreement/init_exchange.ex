@@ -77,13 +77,12 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange do
   salt, and a random `seq_num` suitable for correlation with the corresponding
   `ExchangeResp`.
   """
-  @spec new(key_suite()) :: t()
-  def new(key_type \\ :ecdh_x25519_hkdf_sha256_aes_256_gcm)
+  @spec new(non_neg_integer(), key_suite()) :: t()
+  def new(seq_num, key_type \\ :ecdh_x25519_hkdf_sha256_aes_256_gcm)
 
-  def new(:ecdh_x25519_hkdf_sha256_aes_256_gcm) do
+  def new(seq_num, :ecdh_x25519_hkdf_sha256_aes_256_gcm) when is_integer(seq_num) and seq_num >= 0 do
     key = OKP.generate(:enc)
     hkdf_salt = :crypto.strong_rand_bytes(@hkdf_salt_size)
-    <<seq_num::unsigned-16>> = :crypto.strong_rand_bytes(2)
 
     %__MODULE__{
       seq_num: seq_num,
@@ -93,10 +92,9 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange do
     }
   end
 
-  def new(:ecdh_p256_hkdf_sha256_aes_256_gcm) do
+  def new(seq_num, :ecdh_p256_hkdf_sha256_aes_256_gcm) when is_integer(seq_num) and seq_num >= 0 do
     key = ECC.generate(:es256)
     hkdf_salt = :crypto.strong_rand_bytes(@hkdf_salt_size)
-    <<seq_num::unsigned-16>> = :crypto.strong_rand_bytes(2)
 
     %__MODULE__{
       seq_num: seq_num,

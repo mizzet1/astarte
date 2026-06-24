@@ -57,10 +57,10 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
   end
 
   setup_all do
-    init_exchange = InitExchange.new()
+    init_exchange = InitExchange.new(1)
     init_exchange_payload = InitExchange.cbor_encode(init_exchange)
 
-    p256_init_exchange = InitExchange.new(:ecdh_p256_hkdf_sha256_aes_256_gcm)
+    p256_init_exchange = InitExchange.new(1, :ecdh_p256_hkdf_sha256_aes_256_gcm)
     p256_init_exchange_payload = InitExchange.cbor_encode(p256_init_exchange)
 
     exchange_resp_payload = init_exchange |> ExchangeResp.new() |> ExchangeResp.cbor_encode()

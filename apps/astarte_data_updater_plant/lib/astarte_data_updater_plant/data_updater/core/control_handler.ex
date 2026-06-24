@@ -444,7 +444,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
   """
   @spec send_init_exchange(State.t()) :: {:ok, State.t()} | {:error, term()}
   def send_init_exchange(state) do
-    init_exchange = InitExchange.new()
+    init_exchange = InitExchange.new(state.total_received_msgs)
 
     with :ok <- publish_init_exchange(state.realm, state.device_id, init_exchange),
          {:ok, new_key_state} <-
