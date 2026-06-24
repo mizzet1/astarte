@@ -37,7 +37,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.SharedSecret do
   def derive(my_cose_key, peer_cose_key, salt) do
     with {:ok, raw_ecdh_secret} <- compute_ecdh(my_cose_key, peer_cose_key) do
       # Extract the pseudo-random key (PRK)
-      prk = HKDF.extract(:sha256, raw_ecdh_secret, salt)
+      prk = HKDF.extract(:sha256, salt, raw_ecdh_secret)
 
       # Expand to exactly 32 bytes (256 bits) for AES-256-GCM
       final_key = HKDF.expand(:sha256, prk, 32, @hkdf_info)
