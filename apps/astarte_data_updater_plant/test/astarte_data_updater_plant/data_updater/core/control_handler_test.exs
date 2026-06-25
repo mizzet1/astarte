@@ -30,6 +30,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
 
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeFailed
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeResp
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HashOk
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange
@@ -695,8 +696,8 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         invalid_secret_hash_payload: payload
       } = context
 
-      # Expect 1 publish (the InitExchange renegotiation fallback)
-      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+      # 2 publishes: 1 ExchangeFailed (hash mismatch notification) + 1 InitExchange (renegotiation)
+      expect(VMQPlugin, :publish, 2, fn _topic, _payload_bytes, _qos ->
         {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
@@ -713,8 +714,8 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
 
       # state.encrypted_endpoints_key is :uninitialized by default here
 
-      # Expect 1 publish (the InitExchange renegotiation fallback)
-      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+      # 2 publishes: 1 ExchangeFailed (no shared secret notification) + 1 InitExchange (renegotiation)
+      expect(VMQPlugin, :publish, 2, fn _topic, _payload_bytes, _qos ->
         {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
@@ -753,9 +754,13 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         valid_secret_hash_payload: payload
       } = context
 
-      # Mock publish failure
-      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+      # 2 publishes: 1 HashOk (fails) + 1 ExchangeFailed (best-effort error notification)
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
         {:error, :transport_failure}
+      end)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
       assert {{:ack, :ok, ^state}, log} =
@@ -772,8 +777,13 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         valid_secret_hash_payload: payload
       } = context
 
-      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+      # 2 publishes: 1 HashOk (session not found) + 1 ExchangeFailed (best-effort error notification)
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
         {:ok, %{local_matches: 0, remote_matches: 0}}
+      end)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
       assert {{:ack, :ok, ^state}, log} =
@@ -787,8 +797,17 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
     test "discards message and logs error if renegotiation fails", context do
       %{state: state, valid_secret_hash_payload: payload} = context
 
-      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+      # 3 publishes: 1 ExchangeFailed (no shared secret) + 1 InitExchange (fails) + 1 ExchangeFailed (renegotiation failure)
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
         {:error, :transport_failure}
+      end)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
       assert {{:discard, :transport_failure, ^state}, log} =
@@ -803,8 +822,17 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
          context do
       %{state: state, valid_secret_hash_payload: payload} = context
 
-      expect(VMQPlugin, :publish, 1, fn _topic, _payload_bytes, _qos ->
+      # 3 publishes: 1 ExchangeFailed (no shared secret) + 1 InitExchange (session not found) + 1 ExchangeFailed (renegotiation failure)
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
         {:ok, %{local_matches: 0, remote_matches: 0}}
+      end)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, _qos ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
       assert {{:discard, :session_not_found, ^state}, log} =
@@ -876,6 +904,68 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
 
       assert {:discard, _result, new_state, {:continue, continue_arg}} =
                ControlHandler.handle_control(state, "/keyAgreement/3", payload, 0)
+
+      assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
+    end
+  end
+
+  describe "/keyAgreement/4" do
+    setup do
+      valid_exchange_failed = ExchangeFailed.new(0, :hash_mismatch, "hash did not match")
+      valid_exchange_failed_payload = ExchangeFailed.cbor_encode(valid_exchange_failed)
+
+      # An invalid payload: 3 fields but error_code is a string instead of an integer
+      invalid_exchange_failed_payload = CBOR.encode([0, "not_an_integer", "msg"])
+
+      %{
+        valid_exchange_failed: valid_exchange_failed,
+        valid_exchange_failed_payload: valid_exchange_failed_payload,
+        invalid_exchange_failed_payload: invalid_exchange_failed_payload
+      }
+    end
+
+    test "acks a valid ExchangeFailed payload, updates state to failed, and increments counters",
+         context do
+      %{state: state, valid_exchange_failed_payload: payload} = context
+
+      # Inject a handshake_started state so we can transition from it
+      state = %{
+        state
+        | encrypted_endpoints_key: {:handshake_started, %{}}
+      }
+
+      assert {:ack, :ok, new_state} =
+               ControlHandler.handle_control(state, "/keyAgreement/4", payload, 0)
+
+      # Ensure it correctly transitioned to the failed state with the exact reason
+      assert {:failed, :hash_mismatch} = new_state.encrypted_endpoints_key
+      assert new_state.total_received_msgs == state.total_received_msgs + 1
+      assert new_state.total_received_bytes == state.total_received_bytes + byte_size(payload)
+    end
+
+    test "discards the message if discard_messages is set", context do
+      %{state: state, valid_exchange_failed_payload: payload} = context
+
+      state = %{state | discard_messages: true}
+
+      assert {:discard, :discard_messages, ^state} =
+               ControlHandler.handle_control(state, "/keyAgreement/4", payload, 0)
+    end
+
+    test "discards payload and logs an error if the CBOR structure is invalid", context do
+      %{state: state, invalid_exchange_failed_payload: payload} = context
+
+      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+
+      expect(Core.Trigger, :execute_device_error_triggers, fn _state,
+                                                              "exchange_failed_error",
+                                                              _meta,
+                                                              _ts ->
+        :ok
+      end)
+
+      assert {:discard, _result, new_state, {:continue, continue_arg}} =
+               ControlHandler.handle_control(state, "/keyAgreement/4", payload, 0)
 
       assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
     end

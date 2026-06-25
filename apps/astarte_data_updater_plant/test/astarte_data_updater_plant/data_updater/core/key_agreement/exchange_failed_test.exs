@@ -23,35 +23,49 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeFailedT
 
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeFailed
 
-  describe "new/1" do
+  describe "new/3" do
     test "creates a struct with a valid reason" do
-      assert ExchangeFailed.new(:hash_mismatch).reason == :hash_mismatch
-      assert ExchangeFailed.new(:invalid_payload).reason == :invalid_payload
-      assert ExchangeFailed.new(:unspecified).reason == :unspecified
+      msg = ExchangeFailed.new(0, :hash_mismatch, "hash did not match")
+      assert msg.seq_num == 0
+      assert msg.reason == :hash_mismatch
+      assert msg.error_msg == "hash did not match"
+
+      assert ExchangeFailed.new(1, :invalid_argument, "bad key").reason == :invalid_argument
+
+      assert ExchangeFailed.new(2, :internal_server_error, "crash").reason ==
+               :internal_server_error
+
+      assert ExchangeFailed.new(3, :unprocessable_entity, "key mismatch").reason ==
+               :unprocessable_entity
     end
 
     test "raises for unknown atoms" do
-      assert_raise ArgumentError, fn ->
-        ExchangeFailed.new(:some_random_internal_error)
-      end
-
-      assert_raise ArgumentError, fn ->
-        ExchangeFailed.new(:key_type_mismatch)
+      for reason <- [:some_random_internal_error, :key_type_mismatch] do
+        assert_raise ArgumentError, fn ->
+          ExchangeFailed.new(0, reason, "msg")
+        end
       end
     end
   end
 
   describe "cbor_encode/1 and cbor_decode/1 round-trip" do
     test "round-trips successfully for all valid reasons" do
-      for reason <- [:hash_mismatch, :invalid_payload, :unspecified] do
-        original = ExchangeFailed.new(reason)
+      for reason <- [
+            :hash_mismatch,
+            :invalid_argument,
+            :internal_server_error,
+            :unprocessable_entity
+          ] do
+        original = ExchangeFailed.new(1, reason, "some context")
 
         assert {:ok, decoded} =
                  original
                  |> ExchangeFailed.cbor_encode()
                  |> ExchangeFailed.cbor_decode()
 
+        assert decoded.seq_num == 1
         assert decoded.reason == reason
+        assert decoded.error_msg == "some context"
       end
     end
   end
@@ -64,28 +78,67 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeFailedT
     test "returns error for wrong number of fields" do
       assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode([]))
       assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode([1, 2]))
+
+      assert {:error, :invalid_payload} =
+               ExchangeFailed.cbor_decode(CBOR.encode([1, 400, "msg", :extra]))
     end
 
-    test "returns error when reason code is negative" do
-      assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode([-1]))
+    test "returns error when seq_num is negative" do
+      assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode([-1, 0, "msg"]))
     end
 
-    test "returns error when reason is not an integer" do
-      assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode(["error"]))
+    test "returns error when error_code is negative" do
+      assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode([0, -1, "msg"]))
     end
 
-    test "returns error for an unrecognized reason code" do
-      payload = CBOR.encode([99])
+    test "returns error when error_msg is not a string" do
+      assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(CBOR.encode([0, 0, 42]))
+    end
+
+    test "decodes error code 3 as :unprocessable_entity" do
+      payload = CBOR.encode([5, 3, "unsupported algorithm"])
+
+      assert {:ok,
+              %ExchangeFailed{
+                seq_num: 5,
+                reason: :unprocessable_entity,
+                error_msg: "unsupported algorithm"
+              }} =
+               ExchangeFailed.cbor_decode(payload)
+    end
+
+    test "returns error for an unrecognized error code" do
+      payload = CBOR.encode([0, 99, "unknown"])
 
       assert {:error, :invalid_payload} = ExchangeFailed.cbor_decode(payload)
     end
   end
 
   describe "encode/1" do
-    test "returns a one-element list with the correctly mapped integer code" do
-      assert ExchangeFailed.encode(ExchangeFailed.new(:unspecified)) == [0]
-      assert ExchangeFailed.encode(ExchangeFailed.new(:hash_mismatch)) == [1]
-      assert ExchangeFailed.encode(ExchangeFailed.new(:invalid_payload)) == [2]
+    test "returns a three-element list [seq_num, code, error_msg]" do
+      assert ExchangeFailed.encode(ExchangeFailed.new(0, :internal_server_error, "crash")) == [
+               0,
+               0,
+               "crash"
+             ]
+
+      assert ExchangeFailed.encode(ExchangeFailed.new(1, :invalid_argument, "bad key")) == [
+               1,
+               1,
+               "bad key"
+             ]
+
+      assert ExchangeFailed.encode(ExchangeFailed.new(2, :hash_mismatch, "mismatch")) == [
+               2,
+               2,
+               "mismatch"
+             ]
+
+      assert ExchangeFailed.encode(ExchangeFailed.new(3, :unprocessable_entity, "bad alg")) == [
+               3,
+               3,
+               "bad alg"
+             ]
     end
   end
 end
