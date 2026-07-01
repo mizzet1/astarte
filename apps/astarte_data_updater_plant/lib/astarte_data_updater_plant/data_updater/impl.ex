@@ -240,6 +240,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Impl do
       |> TimeBasedActions.execute_time_based_actions(timestamp)
       |> Core.Device.set_device_disconnected(timestamp)
       |> Map.put(:last_seen_message, timestamp)
+      |> Map.put(:encrypted_endpoints_key, :uninitialized)
 
     Logger.info("Device disconnected.", tag: "device_disconnected")
 
