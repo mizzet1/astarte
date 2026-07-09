@@ -124,6 +124,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange do
     with {:ok, key_suite} <- parse_key_suite(key_type),
          {:ok, cose_key_bytes} <- unwrap_bytes(public_key),
          {:ok, cose_key_map} <- decode_cbor(cose_key_bytes),
+         cose_key_map = normalize_cose_key_map(cose_key_map),
          {:ok, raw_public_key} <- decode_cose_key(key_suite, cose_key_map),
          {:ok, hkdf_salt} <- unwrap_bytes(hkdf_salt),
          :ok <- validate_hkdf_salt(hkdf_salt) do
@@ -161,7 +162,23 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange do
   defp validate_key_suite_compatibility(_, _), do: {:error, :key_type_mismatch}
 
   defp unwrap_bytes(%CBOR.Tag{tag: :bytes, value: value}), do: {:ok, value}
+
+  defp unwrap_bytes(list) when is_list(list) do
+    if Enum.all?(list, &(is_integer(&1) and &1 in 0..255)) do
+      {:ok, :binary.list_to_bin(list)}
+    else
+      {:error, :invalid_argument, "invalid payload"}
+    end
+  end
+
   defp unwrap_bytes(_), do: {:error, :invalid_argument, "invalid payload"}
+
+  defp normalize_cose_key_map(map) when is_map(map) do
+    Map.new(map, fn
+      {k, %CBOR.Tag{tag: :bytes, value: v}} -> {k, v}
+      {k, v} -> {k, v}
+    end)
+  end
 
   defp decode_cbor(bytes) do
     case CBOR.decode(bytes) do
