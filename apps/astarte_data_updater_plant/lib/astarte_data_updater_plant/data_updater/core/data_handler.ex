@@ -620,19 +620,9 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
 
   def validate_value_type(%{} = mappings_by_key, %{} = object) do
     Enum.reduce_while(object, :ok, fn {key, value}, _acc ->
-      with {:ok, %Mapping{value_type: expected_type}} <- Map.fetch(mappings_by_key, key),
-           :ok <- ValueType.validate_value(expected_type, value) do
-        {:cont, :ok}
-      else
-        {:error, reason} ->
-          {:halt, {:error, reason}}
-
-        :error ->
-          Logger.warning("Unexpected key #{inspect(key)} in object #{inspect(object)}.",
-            tag: "unexpected_object_key"
-          )
-
-          {:halt, {:error, :unexpected_object_key}}
+      case fetch_and_validate_value_type(mappings_by_key, key, value, object) do
+        :ok -> {:cont, :ok}
+        error -> {:halt, error}
       end
     end)
   end
@@ -654,6 +644,20 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
       ValueType.validate_value(expected_type, value)
     else
       :ok
+    end
+  end
+
+  defp fetch_and_validate_value_type(mappings_by_key, key, value, object) do
+    case Map.fetch(mappings_by_key, key) do
+      {:ok, %Mapping{value_type: expected_type}} ->
+        ValueType.validate_value(expected_type, value)
+
+      :error ->
+        Logger.warning("Unexpected key #{inspect(key)} in object #{inspect(object)}.",
+          tag: "unexpected_object_key"
+        )
+
+        {:error, :unexpected_object_key}
     end
   end
 

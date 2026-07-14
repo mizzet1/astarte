@@ -69,27 +69,31 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Interface do
       # TODO: make everything with-friendly
       {:ok, interface_descriptor, new_state}
     else
-      # Known errors. TODO: handle specific cases (e.g. ask for new introspection etc.)
-      {:error, :interface_not_in_introspection} ->
-        {:error, :interface_loading_failed}
-
-      {:error, :device_not_found} ->
-        {:error, :interface_loading_failed}
-
-      {:error, :database_error} ->
-        {:error, :interface_loading_failed}
-
-      {:error, :interface_not_found} ->
-        {:error, :interface_loading_failed}
-
-      other ->
-        Logger.warning("maybe_handle_cache_miss failed: #{inspect(other)}")
+      error ->
+        log_unless_known_cache_miss_error(error)
         {:error, :interface_loading_failed}
     end
   end
 
   def maybe_handle_cache_miss(interface_descriptor, _interface_name, state) do
     {:ok, interface_descriptor, state}
+  end
+
+  # Known errors. TODO: handle specific cases (e.g. ask for new introspection etc.)
+  @known_cache_miss_errors [
+    :interface_not_in_introspection,
+    :device_not_found,
+    :database_error,
+    :interface_not_found
+  ]
+
+  defp log_unless_known_cache_miss_error({:error, reason})
+       when reason in @known_cache_miss_errors do
+    :ok
+  end
+
+  defp log_unless_known_cache_miss_error(other) do
+    Logger.warning("maybe_handle_cache_miss failed: #{inspect(other)}")
   end
 
   def prune_interface(state, interface, all_paths_set, timestamp) do
@@ -206,88 +210,91 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Interface do
   def resolve_path(path, interface_descriptor, mappings) do
     case interface_descriptor.aggregation do
       :individual ->
-        with {:ok, endpoint_id} <-
-               EndpointsAutomaton.resolve_path(path, interface_descriptor.automaton),
-             {:ok, endpoint} <- Map.fetch(mappings, endpoint_id) do
-          {:ok, endpoint}
-        else
-          :error ->
-            # Map.fetch failed
-            Logger.warning(
-              "endpoint_id for path #{inspect(path)} not found in mappings #{inspect(mappings)}."
-            )
-
-            {:error, :mapping_not_found}
-
-          {:error, reason} ->
-            Logger.warning(
-              "EndpointsAutomaton.resolve_path failed with reason #{inspect(reason)}."
-            )
-
-            {:error, :mapping_not_found}
-
-          {:guessed, guessed_endpoints} ->
-            {:guessed, guessed_endpoints}
-        end
+        resolve_individual_path(path, interface_descriptor, mappings)
 
       :object ->
-        with {:guessed, [first_endpoint_id | _tail] = guessed_endpoints} <-
-               EndpointsAutomaton.resolve_path(path, interface_descriptor.automaton),
-             :ok <- check_object_aggregation_prefix(path, guessed_endpoints, mappings),
-             {:ok, first_mapping} <- Map.fetch(mappings, first_endpoint_id) do
-          # We return the first guessed mapping changing just its endpoint id, using the canonical
-          # endpoint id used in object aggregated interfaces. This way all mapping properties
-          # (database_retention_ttl, reliability etc) are correctly set since they're the same in
-          # all mappings (this is enforced by Realm Management when the interface is installed)
-
-          endpoint_id =
-            CQLUtils.endpoint_id(
-              interface_descriptor.name,
-              interface_descriptor.major_version,
-              ""
-            )
-
-          {:ok, %{first_mapping | endpoint_id: endpoint_id}}
-        else
-          :error ->
-            # Map.fetch failed
-            Logger.warning(
-              "endpoint_id for path #{inspect(path)} not found in mappings #{inspect(mappings)}."
-            )
-
-            {:error, :mapping_not_found}
-
-          {:ok, _endpoint_id} ->
-            # This is invalid here, publish doesn't happen on endpoints
-            # in object aggregated interfaces
-            Logger.warning(
-              "Tried to publish on endpoint #{inspect(path)} for object aggregated " <>
-                "interface #{inspect(interface_descriptor.name)}. You should publish on " <>
-                "the common prefix",
-              tag: "invalid_path"
-            )
-
-            {:error, :mapping_not_found}
-
-          {:error, :not_found} ->
-            Logger.warning(
-              "Tried to publish on invalid path #{inspect(path)} for object aggregated " <>
-                "interface #{inspect(interface_descriptor.name)}",
-              tag: "invalid_path"
-            )
-
-            {:error, :mapping_not_found}
-
-          {:error, :invalid_object_aggregation_path} ->
-            Logger.warning(
-              "Tried to publish on invalid path #{inspect(path)} for object aggregated " <>
-                "interface #{inspect(interface_descriptor.name)}",
-              tag: "invalid_path"
-            )
-
-            {:error, :mapping_not_found}
-        end
+        resolve_object_path(path, interface_descriptor, mappings)
     end
+  end
+
+  defp resolve_individual_path(path, interface_descriptor, mappings) do
+    with {:ok, endpoint_id} <-
+           EndpointsAutomaton.resolve_path(path, interface_descriptor.automaton),
+         {:ok, endpoint} <- Map.fetch(mappings, endpoint_id) do
+      {:ok, endpoint}
+    else
+      result ->
+        handle_individual_resolve_result(result, path, mappings)
+    end
+  end
+
+  defp handle_individual_resolve_result({:guessed, guessed_endpoints}, _path, _mappings) do
+    {:guessed, guessed_endpoints}
+  end
+
+  defp handle_individual_resolve_result(:error, path, mappings) do
+    # Map.fetch failed
+    Logger.warning(
+      "endpoint_id for path #{inspect(path)} not found in mappings #{inspect(mappings)}."
+    )
+
+    {:error, :mapping_not_found}
+  end
+
+  defp handle_individual_resolve_result({:error, reason}, _path, _mappings) do
+    Logger.warning("EndpointsAutomaton.resolve_path failed with reason #{inspect(reason)}.")
+    {:error, :mapping_not_found}
+  end
+
+  defp resolve_object_path(path, interface_descriptor, mappings) do
+    with {:guessed, [first_endpoint_id | _tail] = guessed_endpoints} <-
+           EndpointsAutomaton.resolve_path(path, interface_descriptor.automaton),
+         :ok <- check_object_aggregation_prefix(path, guessed_endpoints, mappings),
+         {:ok, first_mapping} <- Map.fetch(mappings, first_endpoint_id) do
+      # We return the first guessed mapping changing just its endpoint id, using the canonical
+      # endpoint id used in object aggregated interfaces. This way all mapping properties
+      # (database_retention_ttl, reliability etc) are correctly set since they're the same in
+      # all mappings (this is enforced by Realm Management when the interface is installed)
+
+      endpoint_id =
+        CQLUtils.endpoint_id(
+          interface_descriptor.name,
+          interface_descriptor.major_version,
+          ""
+        )
+
+      {:ok, %{first_mapping | endpoint_id: endpoint_id}}
+    else
+      result ->
+        log_object_resolve_error(result, path, interface_descriptor, mappings)
+        {:error, :mapping_not_found}
+    end
+  end
+
+  defp log_object_resolve_error(:error, path, _interface_descriptor, mappings) do
+    # Map.fetch failed
+    Logger.warning(
+      "endpoint_id for path #{inspect(path)} not found in mappings #{inspect(mappings)}."
+    )
+  end
+
+  defp log_object_resolve_error({:ok, _endpoint_id}, path, interface_descriptor, _mappings) do
+    # This is invalid here, publish doesn't happen on endpoints
+    # in object aggregated interfaces
+    Logger.warning(
+      "Tried to publish on endpoint #{inspect(path)} for object aggregated " <>
+        "interface #{inspect(interface_descriptor.name)}. You should publish on " <>
+        "the common prefix",
+      tag: "invalid_path"
+    )
+  end
+
+  defp log_object_resolve_error(_error, path, interface_descriptor, _mappings) do
+    Logger.warning(
+      "Tried to publish on invalid path #{inspect(path)} for object aggregated " <>
+        "interface #{inspect(interface_descriptor.name)}",
+      tag: "invalid_path"
+    )
   end
 
   defp check_object_aggregation_prefix(path, guessed_endpoints, mappings) do
