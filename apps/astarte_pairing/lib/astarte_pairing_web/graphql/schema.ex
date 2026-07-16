@@ -6,6 +6,7 @@ defmodule Astarte.PairingWeb.GraphQL.Schema do
   # Create an alias to avoid writing the full name of the resolver
   alias Astarte.PairingWeb.GraphQL.Resolvers.DeviceResolver
   alias Astarte.PairingWeb.GraphQL.Resolvers.AgentResolver
+  alias Astarte.PairingWeb.GraphQL.Resolvers.DeviceManagerResolver
   alias Astarte.PairingWeb.GraphQL.Middleware.AuthorizeFGA
 
   # QUERIES (Read-only)
@@ -15,6 +16,11 @@ defmodule Astarte.PairingWeb.GraphQL.Schema do
       arg(:hw_id, non_null(:string))
 
       resolve(&DeviceResolver.get_device/3)
+    end
+
+    @desc "Lists the devices the caller can manage, whether granted directly or inherited as a realm device manager"
+    field :manageable_devices, list_of(:string) do
+      resolve(&DeviceManagerResolver.manageable_devices/3)
     end
   end
 
@@ -83,6 +89,34 @@ defmodule Astarte.PairingWeb.GraphQL.Schema do
       )
 
       resolve(&DeviceResolver.verify_credentials/3)
+    end
+
+    @desc "Grants a user the device_manager relation, which inherits management access on every device in the realm. Requires Agent permissions."
+    field :grant_device_manager, :string do
+      arg(:user_id, non_null(:string), description: "The user to grant device_manager to")
+
+      middleware(AuthorizeFGA,
+        relation: "device_register",
+        target: :realm,
+        legacy_method: "POST",
+        legacy_path: "agent/devices"
+      )
+
+      resolve(&DeviceManagerResolver.grant_device_manager/3)
+    end
+
+    @desc "Revokes a user's device_manager relation. Requires Agent permissions."
+    field :revoke_device_manager, :string do
+      arg(:user_id, non_null(:string), description: "The user to revoke device_manager from")
+
+      middleware(AuthorizeFGA,
+        relation: "device_register",
+        target: :realm,
+        legacy_method: "POST",
+        legacy_path: "agent/devices"
+      )
+
+      resolve(&DeviceManagerResolver.revoke_device_manager/3)
     end
   end
 end

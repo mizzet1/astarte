@@ -11,6 +11,10 @@ STORE_ID=$(echo $STORE_RESPONSE | jq -r .id)
 echo "✅ Store ID generato: $STORE_ID"
 
 # 2. Creazione dell'Authorization Model e cattura dell'ID
+#    "device.belongs_to" + "device_manager from belongs_to" e' una vera
+#    relazione composta (tupleToUserset): un device_manager del realm eredita
+#    i permessi su OGNI device del realm senza bisogno di una tupla diretta
+#    per ciascuno.
 echo "Creazione dell'Authorization Model..."
 MODEL_RESPONSE=$(curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/authorization-models" \
   -H "Content-Type: application/json" \
@@ -23,7 +27,8 @@ MODEL_RESPONSE=$(curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/autho
         "relations": {
           "device_register": { "this": {} },
           "fdo_manage": { "this": {} },
-          "fdo_read": { "this": {} }
+          "fdo_read": { "this": {} },
+          "device_manager": { "this": {} }
         },
         "metadata": {
           "relations": {
@@ -35,6 +40,9 @@ MODEL_RESPONSE=$(curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/autho
             },
             "fdo_read": {
               "directly_related_user_types": [{ "type": "user" }]
+            },
+            "device_manager": {
+              "directly_related_user_types": [{ "type": "user" }]
             }
           }
         }
@@ -42,12 +50,52 @@ MODEL_RESPONSE=$(curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/autho
       {
         "type": "device",
         "relations": {
-          "can_unregister": { "this": {} },
-          "can_obtain_credentials": { "this": {} },
-          "can_verify_credentials": { "this": {} }
+          "belongs_to": { "this": {} },
+          "can_unregister": {
+            "union": {
+              "child": [
+                { "this": {} },
+                {
+                  "tupleToUserset": {
+                    "tupleset": { "relation": "belongs_to" },
+                    "computedUserset": { "relation": "device_manager" }
+                  }
+                }
+              ]
+            }
+          },
+          "can_obtain_credentials": {
+            "union": {
+              "child": [
+                { "this": {} },
+                {
+                  "tupleToUserset": {
+                    "tupleset": { "relation": "belongs_to" },
+                    "computedUserset": { "relation": "device_manager" }
+                  }
+                }
+              ]
+            }
+          },
+          "can_verify_credentials": {
+            "union": {
+              "child": [
+                { "this": {} },
+                {
+                  "tupleToUserset": {
+                    "tupleset": { "relation": "belongs_to" },
+                    "computedUserset": { "relation": "device_manager" }
+                  }
+                }
+              ]
+            }
+          }
         },
         "metadata": {
           "relations": {
+            "belongs_to": {
+              "directly_related_user_types": [{ "type": "realm" }]
+            },
             "can_unregister": {
               "directly_related_user_types": [{ "type": "user" }]
             },
@@ -93,8 +141,51 @@ curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/write" \
           "user": "user:test_user_id",
           "relation": "can_verify_credentials",
           "object": "device:f0VMRgIBAQAAAAAAAAAAAA"
+        },
+        {
+          "user": "user:test_user_id",
+          "relation": "can_verify_credentials",
+          "object": "device:Device_Con_Introspection"
+        },
+        {
+          "user": "realm:test",
+          "relation": "belongs_to",
+          "object": "device:Device_Con_Introspection"
         }
       ]
     }
   }' > /dev/null
 echo "✅ Tuple scritte con successo. Setup completato!"
+
+# 4. Demo della relazione composta: device_manager_demo NON ha nessuna tupla
+#    diretta sul device, solo "device_manager" sul realm. Il check dovrebbe
+#    comunque risultare "allowed: true" su can_unregister grazie a
+#    "device_manager from belongs_to".
+echo "Scrittura della tupla di device_manager del realm per device_manager_demo..."
+curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/write" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "writes": {
+      "tuple_keys": [
+        {
+          "user": "user:device_manager_demo",
+          "relation": "device_manager",
+          "object": "realm:test"
+        }
+      ]
+    }
+  }' > /dev/null
+echo "✅ device_manager_demo e' ora device_manager di realm:test."
+
+echo "Verifica della relazione ereditata (tupleToUserset)..."
+curl -s -X POST "http://localhost:8081/stores/${STORE_ID}/check" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "tuple_key": {
+      "user": "user:device_manager_demo",
+      "relation": "can_unregister",
+      "object": "device:Device_Con_Introspection"
+    }
+  }'
+echo ""
+echo "☝️ Se \"allowed\" e' true, device_manager_demo eredita il permesso senza tupla diretta sul device."
