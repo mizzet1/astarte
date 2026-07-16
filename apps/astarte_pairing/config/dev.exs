@@ -81,7 +81,7 @@ config :astarte_pairing, bao_token: "astarte_token"
 config :astarte_pairing, bao_url: "http://localhost:8200"
 
 config :astarte_pairing,
-  openfga_url: System.get_env("ASTARTE_PAIRING_OPENFGA_URL") || "http://localhost:8080"
+  openfga_url: System.get_env("ASTARTE_PAIRING_OPENFGA_URL") || "http://localhost:8081"
 
 config :astarte_pairing,
   openfga_store_id: System.get_env("ASTARTE_PAIRING_OPENFGA_STORE_ID") || "STORE_TEST_12345"
