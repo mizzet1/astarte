@@ -70,7 +70,7 @@ defmodule Astarte.DataAccess.Mixfile do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:exandra, "~> 0.13"},
+      {:exandra, "~> 1.0"},
       # TODO: Remove override when exandra includes the fix for the issue with decimal 2.0
       {:xandra, github: "whatyouhide/xandra", override: true},
       {:decimal, "~> 3.0", override: true},
@@ -82,7 +82,7 @@ defmodule Astarte.DataAccess.Mixfile do
       {:castore, "~> 1.0.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
-      {:mimic, "~> 1.7.4", only: :test},
+      {:mimic, "~> 2.3.0", only: :test},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]

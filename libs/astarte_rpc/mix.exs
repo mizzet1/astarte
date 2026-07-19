@@ -60,7 +60,7 @@ defmodule Astarte.RPC.MixProject do
       {:mneme, "~> 0.10", only: :test},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:libcluster, "~> 3.3"},
-      {:mimic, "~> 1.11", only: [:test, :dev]},
+      {:mimic, "~> 2.0", only: [:test, :dev]},
       {:phoenix_pubsub, "~> 2.0"},
       {:skogsra, "~> 2.0"},
       {:typedstruct, "~> 0.5"},
