@@ -17,9 +17,9 @@ on:
 jobs:
   warmup:
     name: Cache warmup
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: team-alembic/staple-actions/actions/mix-compile@a74b3b61209d35d45526df174766632f8aee03ed
         with:
           working-directory: apps/${{ inputs.app }}
@@ -28,11 +28,11 @@ jobs:
 
   formatter:
     name: Formatting
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - warmup
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: team-alembic/staple-actions/actions/mix-format@a74b3b61209d35d45526df174766632f8aee03ed
         with:
           working-directory: apps/${{ inputs.app }}
@@ -40,11 +40,11 @@ jobs:
 
   credo:
     name: Credo
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - warmup
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: team-alembic/staple-actions/actions/mix-credo@a74b3b61209d35d45526df174766632f8aee03ed
         with:
           working-directory: apps/${{ inputs.app }}
@@ -52,11 +52,11 @@ jobs:
 
   deps_audit:
     name: Deps Audit
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - warmup
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: team-alembic/staple-actions/actions/mix-task@a74b3b61209d35d45526df174766632f8aee03ed
         with:
           working-directory: apps/${{ inputs.app }}
@@ -65,11 +65,11 @@ jobs:
 
   dialyzer:
     name: Dialyzer
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs:
       - warmup
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: team-alembic/staple-actions/actions/mix-dialyzer-plt@a74b3b61209d35d45526df174766632f8aee03ed
         with:
           working-directory: apps/${{ inputs.app }}
@@ -86,7 +86,7 @@ jobs:
     name: Test
     needs:
       - warmup
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     env:
       ASTARTE_VAULT_TOKEN: "astarte_token"
     strategy:
@@ -140,7 +140,7 @@ jobs:
         command: '--log-level=debug rendezvous 0.0.0.0:8041 --db-type sqlite --db-dsn "file:/var/lib/fdo/rendezvous.db"'
 
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - uses: team-alembic/staple-actions/actions/mix-task@a74b3b61209d35d45526df174766632f8aee03ed
         with:
           working-directory: apps/${{ inputs.app }}

@@ -22,9 +22,9 @@ jobs:
         working-directory: ./astarte-dashboard
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
       - name: Setup node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version-file: "astarte-dashboard/.tool-versions"
       - name: Get Node.js Version
@@ -32,7 +32,7 @@ jobs:
         run: |
           echo "version=$(node --version)" >> $GITHUB_OUTPUT
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             astarte-dashboard/node_modules
