@@ -50,14 +50,14 @@ defmodule Astarte.Events.Mixfile do
 
   defp deps do
     [
-      {:amqp, "~> 3.3"},
+      {:amqp, "~> 4.0"},
       {:castore, "~> 1.0.0"},
       {:con_cache, "~> 1.1"},
       {:excoveralls, "~> 0.15", only: :test},
       {:current_rabbit_pool, "~> 1.1"},
       {:skogsra, "~> 2.2"},
       {:mox, "~> 1.0", only: :test},
-      {:mimic, "~> 1.11", only: [:dev, :test]},
+      {:mimic, "~> 2.0", only: [:dev, :test]},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:astarte_data_access, path: "../astarte_data_access"},
       {:astarte_core, github: "astarte-platform/astarte_core"},
@@ -65,7 +65,7 @@ defmodule Astarte.Events.Mixfile do
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
       {:astarte_generators, path: "../astarte_generators", only: [:dev, :test]},
       {:typedstruct, "~> 0.5"},
-      {:httpoison, "~> 2.2"},
+      {:httpoison, "~> 3.0"},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false},
       # TODO: Remove override when exandra includes the fix for the issue with decimal 2.0
       {:decimal, "~> 3.0", override: true}

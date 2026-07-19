@@ -71,7 +71,7 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
   defp deps do
     [
       {:jason, "~> 1.2"},
-      {:amqp, "~> 3.3"},
+      {:amqp, "~> 4.0"},
       {:castore, "~> 1.0.0"},
       {:cbor, "~> 1.0"},
       {:con_cache, "~> 1.0"},
@@ -80,8 +80,8 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
       {:excoveralls, "~> 0.15", only: :test},
       {:mississippi, github: "secomind/mississippi"},
       {:mox, "~> 1.0", only: :test},
-      {:mimic, "~> 1.11", only: [:dev, :test]},
-      {:exandra, "~> 0.13"},
+      {:mimic, "~> 2.0", only: [:dev, :test]},
+      {:exandra, "~> 1.0"},
       # TODO: Remove override when exandra includes the fix for the issue with decimal 2.0
       {:xandra, github: "whatyouhide/xandra", override: true},
       {:decimal, "~> 3.0", override: true},
@@ -98,7 +98,7 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
       {:telemetry_metrics, "~> 1.1"},
       {:telemetry_poller, "~> 1.3"},
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
-      {:observer_cli, "~> 1.5"},
+      {:observer_cli, "~> 2.0"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:uuid, "~> 2.0", hex: :uuid_erl},
       {:typedstruct, "~> 0.5"},

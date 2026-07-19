@@ -71,14 +71,14 @@ defmodule Astarte.AppEngine.API.Mixfile do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:amqp, "~> 3.0"},
+      {:amqp, "~> 4.0"},
       {:phoenix, "~> 1.7"},
       {:phoenix_ecto, "~> 4.0"},
       {:phoenix_view, "~> 2.0"},
-      {:gettext, "~> 0.24"},
+      {:gettext, "~> 1.0"},
       {:bandit, "~> 1.11"},
       {:jason, "~> 1.2"},
-      {:cors_plug, "~> 2.0"},
+      {:cors_plug, "~> 3.0"},
       {:ex_lttb, "~> 0.3"},
       {:cyanide, "~> 2.0"},
       {:guardian, "~> 2.3.2"},
@@ -87,7 +87,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:ex_json_schema, "~> 0.9"},
       {:current_rabbit_pool, "~> 1.1"},
       {:phoenix_swagger, "~> 0.8"},
-      {:exandra, "~> 0.13"},
+      {:exandra, "~> 1.0"},
       # TODO: Remove override when exandra includes the fix for the issue with decimal 2.0
       {:xandra, github: "whatyouhide/xandra", override: true},
       {:decimal, "~> 3.0", override: true},
@@ -100,7 +100,7 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
       {:skogsra, "~> 2.2"},
       {:castore, "~> 1.0.0"},
-      {:observer_cli, "~> 1.5"},
+      {:observer_cli, "~> 2.0"},
       {:dialyxir, "~> 1.0", only: [:dev, :test], runtime: false},
       {:libcluster, "~> 3.3"},
       {:astarte_data_access, path: astarte_lib("astarte_data_access")},
@@ -113,8 +113,8 @@ defmodule Astarte.AppEngine.API.Mixfile do
       {:ymlr, "~> 5.1"},
       # Test section
       {:excoveralls, "~> 0.15", only: :test},
-      {:mox, "~> 0.5", only: :test},
-      {:mimic, "~> 1.11", only: :test},
+      {:mox, "~> 1.0", only: :test},
+      {:mimic, "~> 2.0", only: :test},
       {:ecto, "~> 3.13", override: true},
       {:mix_audit, "~> 2.1", only: [:dev, :test], runtime: false}
     ]
