@@ -59,6 +59,35 @@ defmodule Astarte.RPC.VolatileTriggersTest do
     end
   end
 
+  describe "subscribe_types/1" do
+    test "subscribes to the volatile trigger type topics" do
+      types = [:device_trigger]
+
+      VolatileTriggers.subscribe_types(types)
+
+      PubSub.broadcast(Server, "volatile-trigger-by-type:device_trigger", :msg)
+
+      assert_receive :msg
+    end
+
+    test "subscribes to volatile trigger deletions" do
+      VolatileTriggers.subscribe_types([:device_trigger])
+
+      PubSub.broadcast(Server, "volatile-triggers:deletion", :msg)
+
+      assert_receive :msg
+    end
+
+    test "with an empty list does not subscribe to any topic" do
+      VolatileTriggers.subscribe_types([])
+
+      PubSub.broadcast(Server, "volatile-trigger-by-type:device_trigger", :msg)
+      PubSub.broadcast(Server, "volatile-triggers:deletion", :msg)
+
+      refute_receive :msg
+    end
+  end
+
   describe "install/4" do
     test "sends an install trigger message to all the replicas for device triggers", context do
       %{
@@ -231,6 +260,22 @@ defmodule Astarte.RPC.VolatileTriggersTest do
         realm_name: realm_name,
         trigger_id: trigger_id
       } = context
+
+      VolatileTriggers.delete(realm_name, trigger_id)
+
+      assert_receive %VolatileTriggerDeletion{trigger_id: ^trigger_id}
+    end
+
+    test "sends a delete trigger message to the type subscribers", context do
+      %{
+        realm_name: realm_name,
+        trigger_id: trigger_id
+      } = context
+
+      # type subscribers listen on the deletion topic, since the type of a
+      # deleted trigger is not known at broadcast time
+      PubSub.unsubscribe(Server, "volatile-triggers:*")
+      PubSub.subscribe(Server, "volatile-triggers:deletion")
 
       VolatileTriggers.delete(realm_name, trigger_id)
 

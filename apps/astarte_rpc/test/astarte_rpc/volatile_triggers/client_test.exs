@@ -22,8 +22,10 @@ defmodule Astarte.RPC.VolatileTriggers.ClientTest do
 
   alias Astarte.Core.Triggers.SimpleTriggersProtobuf.AMQPTriggerTarget
   alias Astarte.Events.Triggers, as: EventsTriggers
+  alias Astarte.RPC.Server
   alias Astarte.RPC.VolatileTriggers
   alias Astarte.RPC.VolatileTriggers.Client
+  alias Phoenix.PubSub
 
   setup_all do
     client = start_link_supervised!(Client)
@@ -37,6 +39,23 @@ defmodule Astarte.RPC.VolatileTriggers.ClientTest do
     Mimic.allow(EventsTriggers, self(), client)
 
     :ok
+  end
+
+  describe "init/1" do
+    test "subscribes to every volatile trigger when no types are given" do
+      expect(PubSub, :subscribe, fn Server, "volatile-triggers:*" -> :ok end)
+
+      assert {:ok, nil} = Client.init([])
+    end
+
+    test "subscribes to the given types only" do
+      expect(PubSub, :subscribe, 2, fn
+        Server, "volatile-trigger-by-type:INTERFACE_ADDED" -> :ok
+        Server, "volatile-triggers:deletion" -> :ok
+      end)
+
+      assert {:ok, nil} = Client.init(types: [:INTERFACE_ADDED])
+    end
   end
 
   describe "trigger installation" do

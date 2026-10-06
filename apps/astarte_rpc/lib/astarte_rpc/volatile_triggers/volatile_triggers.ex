@@ -30,7 +30,29 @@ defmodule Astarte.RPC.VolatileTriggers do
   alias Astarte.RPC.VolatileTriggers.VolatileTriggerInstallation
   alias Phoenix.PubSub
 
-  def subscribe_all, do: PubSub.subscribe(Server, "volatile-triggers:*")
+  @all_key "volatile-triggers:*"
+  @deletion_key "volatile-triggers:deletion"
+
+  def subscribe_all, do: PubSub.subscribe(Server, @all_key)
+
+  @doc """
+  Subscribes the current process to the installation of volatile triggers of the
+  given types only.
+
+  Deletion messages carry just the trigger id, so the type of the deleted
+  trigger is not known when they are broadcast: subscribers of any type receive
+  every deletion, and deleting an unknown trigger is a no-op.
+  """
+  def subscribe_types([]), do: :ok
+
+  def subscribe_types(types) do
+    for type <- types do
+      key = volatile_trigger_by_type_key(type)
+      PubSub.subscribe(Server, key)
+    end
+
+    PubSub.subscribe(Server, @deletion_key)
+  end
 
   @spec install(
           String.t(),
@@ -48,7 +70,7 @@ defmodule Astarte.RPC.VolatileTriggers do
           data: data
         }
 
-      broadcast(message)
+      broadcast(to_volatile_trigger_by_type_key(tagged_simple_trigger), message)
     end
   end
 
@@ -60,10 +82,24 @@ defmodule Astarte.RPC.VolatileTriggers do
         trigger_id: trigger_id
       }
 
-    broadcast(message)
+    broadcast(@deletion_key, message)
   end
 
-  defp broadcast(message) do
-    PubSub.broadcast(Server, "volatile-triggers:*", message)
+  defp broadcast(key, message) do
+    PubSub.broadcast(Server, key, message)
+    PubSub.broadcast(Server, @all_key, message)
   end
+
+  defp to_volatile_trigger_by_type_key(tagged_simple_trigger) do
+    trigger_type = trigger_type(tagged_simple_trigger.simple_trigger_container.simple_trigger)
+
+    volatile_trigger_by_type_key(trigger_type)
+  end
+
+  defp volatile_trigger_by_type_key(trigger_type) do
+    "volatile-trigger-by-type:" <> Atom.to_string(trigger_type)
+  end
+
+  defp trigger_type({:device_trigger, device_trigger}), do: device_trigger.device_event_type
+  defp trigger_type({:data_trigger, data_trigger}), do: data_trigger.data_trigger_type
 end
