@@ -1,0 +1,10 @@
+# Overlay for the root docker-compose.yml that publishes the RabbitMQ AMQP
+# port on the loopback interface, so that `cargo e2e` running on the host can
+# consume the device_connected trigger events.
+#
+#   docker compose -p astarte-e2e -f docker-compose.yml \
+#     -f tools/astarte-e2e-next/compose.local.yaml up -d
+services:
+  rabbitmq:
+    ports:
+      - "127.0.0.1:5672:5672"
