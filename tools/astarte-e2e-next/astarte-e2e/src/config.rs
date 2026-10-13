@@ -159,19 +159,14 @@ pub struct Config {
 }
 
 impl Config {
-    pub fn api_client(&self) -> eyre::Result<ApiClient> {
-        let device_id = self
-            .device
-            .device_id
-            .clone()
-            .ok_or_else(|| eyre!("missing device id, required to build the API client"))?;
-
+    /// Build the API client for the given device.
+    pub fn api_client(&self, device_id: &str) -> eyre::Result<ApiClient> {
         ApiClient::build(
             self.astarte.appengine_url()?,
             self.astarte.pairing_url()?,
             self.astarte.realm_management_url()?,
             self.astarte.realm.clone(),
-            device_id,
+            device_id.to_string(),
             &self.astarte.jwt,
         )
     }

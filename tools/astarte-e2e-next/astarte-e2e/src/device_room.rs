@@ -135,7 +135,7 @@ impl ConnectionBuilder {
             }],
         };
 
-        let api_client = config.api_client()?;
+        let api_client = config.api_client(&device_id)?;
 
         api_client
             .install_trigger(&device_connected_trigger)

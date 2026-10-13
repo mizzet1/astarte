@@ -78,8 +78,6 @@ cargo e2e
 - Test names and libtest flags can't be passed: `cargo e2e some_test` and
   `cargo e2e -- --nocapture` fail with `unexpected argument`, because each test
   parses its configuration from the command line. Run the whole suite.
-- `E2E_DEVICE_ID` must be set even though every test registers a new device,
-  otherwise the tests fail with `missing device id`. The setup script sets it.
 - Every test run leaves a `device-connected-*` trigger in the realm and an
   exchange and queue in RabbitMQ.
 
