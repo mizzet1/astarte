@@ -23,6 +23,8 @@ defmodule Astarte.AppEngine.API.DataTransmitter do
   """
 
   alias Astarte.AppEngine.API.RPC.VMQPlugin
+  alias Astarte.Secrets.EncryptedMessages
+  alias COSE.Keys.Symmetric
 
   @property_qos 2
 
@@ -36,6 +38,9 @@ defmodule Astarte.AppEngine.API.DataTransmitter do
   `opts` is a keyword list that can contain the following keys:
   * `timestamp`: a timestamp that is added in the BSON object inside the `t` key
   * `metadata`: a map of metadata that is added in the BSON object inside the `m` key
+  * `encrypt_with`: a `COSE.Keys.Symmetric` session key. When present the whole BSON
+    payload is encrypted with it and published as a COSE_Encrypt0 message, with no
+    further BSON wrapping. Used for mappings declared `encrypted`.
   """
   def push_datastream(realm, device_id, interface, path, payload, opts \\ []) do
     timestamp = Keyword.get(opts, :timestamp)
@@ -45,6 +50,7 @@ defmodule Astarte.AppEngine.API.DataTransmitter do
     bson_payload =
       make_payload_map(payload, timestamp, metadata)
       |> Cyanide.encode!()
+      |> maybe_encrypt(opts)
 
     topic = make_topic(realm, device_id, interface, path)
 
@@ -69,6 +75,9 @@ defmodule Astarte.AppEngine.API.DataTransmitter do
   `opts` is a keyword list that can contain the following keys:
   * `timestamp`: a timestamp that is added in the BSON object inside the `t` key
   * `metadata`: a map of metadata that is added in the BSON object inside the `m` key
+  * `encrypt_with`: a `COSE.Keys.Symmetric` session key. When present the whole BSON
+    payload is encrypted with it and published as a COSE_Encrypt0 message, with no
+    further BSON wrapping. Used for mappings declared `encrypted`.
   """
   def set_property(realm, device_id, interface, path, payload, opts \\ []) do
     timestamp = Keyword.get(opts, :timestamp)
@@ -77,6 +86,7 @@ defmodule Astarte.AppEngine.API.DataTransmitter do
     bson_payload =
       make_payload_map(payload, timestamp, metadata)
       |> Cyanide.encode!()
+      |> maybe_encrypt(opts)
 
     topic = make_topic(realm, device_id, interface, path)
 
@@ -109,6 +119,15 @@ defmodule Astarte.AppEngine.API.DataTransmitter do
     )
 
     VMQPlugin.publish(topic, "", @property_qos)
+  end
+
+  # Il payload cifrato e' il BSON completo (`v`, piu' `t`/`m` quando presenti): il
+  # device decifra e trova esattamente lo stesso documento del caso in chiaro.
+  defp maybe_encrypt(bson_payload, opts) do
+    case Keyword.get(opts, :encrypt_with) do
+      nil -> bson_payload
+      %Symmetric{} = key -> EncryptedMessages.encrypt(bson_payload, key)
+    end
   end
 
   defp make_payload_map(payload, nil, nil) do

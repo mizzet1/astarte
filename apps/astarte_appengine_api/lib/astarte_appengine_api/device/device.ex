@@ -41,7 +41,6 @@ defmodule Astarte.AppEngine.API.Device do
   alias Astarte.DataAccess.Interface, as: InterfaceQueries
   alias Astarte.DataAccess.Mappings
   alias Astarte.Secrets
-  alias Astarte.Secrets.EncryptedMessages
   alias Ecto.Changeset
 
   require Logger
@@ -211,14 +210,9 @@ defmodule Astarte.AppEngine.API.Device do
          reliability = mapping.reliability,
          publish_opts = build_publish_opts(interface_type, reliability),
          interface_name = interface_descriptor.name,
-         publish_value =
-           maybe_apply_transport_encryption(
-             realm_name,
-             mapping,
-             value,
-             device_id,
-             mapping.value_type
-           ),
+         publish_value = wrap_to_bson_struct(mapping.value_type, value),
+         {:ok, publish_opts} <-
+           maybe_add_transport_encryption(publish_opts, realm_name, mapping, device_id),
          :ok <-
            ensure_publish(
              realm_name,
@@ -263,53 +257,30 @@ defmodule Astarte.AppEngine.API.Device do
     end
   end
 
-  defp maybe_apply_transport_encryption(
-         realm_name,
-         %Mapping{} = mapping,
-         value,
-         device_id,
-         expected_types
-       ) do
-    should_encrypt_transport_payload = mapping.encrypted
-
-    maybe_apply_transport_encryption_with_endpoints(
-      realm_name,
-      should_encrypt_transport_payload,
-      value,
-      device_id,
-      expected_types
-    )
-  end
-
-  defp maybe_apply_transport_encryption(realm_name, mappings, value, device_id, expected_types)
-       when is_list(mappings) do
-    should_encrypt_transport_payload =
-      mappings
-      |> Enum.any?(& &1.encrypted)
-
-    maybe_apply_transport_encryption_with_endpoints(
-      realm_name,
-      should_encrypt_transport_payload,
-      value,
-      device_id,
-      expected_types
-    )
-  end
-
-  defp maybe_apply_transport_encryption_with_endpoints(
-         realm_name,
-         should_encrypt_transport_payload,
-         value,
-         device_id,
-         expected_types
-       ) do
-    if should_encrypt_transport_payload do
-      with {:ok, shared_secret} <- Queries.retrieve_shared_secret(realm_name, device_id) do
-        bson_value = Cyanide.encode!(%{v: value})
-        EncryptedMessages.encrypt(bson_value, shared_secret)
-      end
+  # Non cifra qui: mette la chiave di sessione nelle opts di publish, cosi' la
+  # cifratura avviene su BSON gia' serializzato, dentro al DataTransmitter. Cifrare
+  # prima significava BSON-wrappare due volte (il COSE finiva come stringa dentro
+  # a un secondo documento `{v: ...}`) e perdere `t`/`m`.
+  defp maybe_add_transport_encryption(opts, realm_name, %Mapping{} = mapping, device_id) do
+    if mapping.encrypted do
+      put_shared_secret(opts, realm_name, device_id)
     else
-      wrap_to_bson_struct(expected_types, value)
+      {:ok, opts}
+    end
+  end
+
+  defp maybe_add_transport_encryption(opts, realm_name, mappings, device_id)
+       when is_list(mappings) do
+    if Enum.any?(mappings, & &1.encrypted) do
+      put_shared_secret(opts, realm_name, device_id)
+    else
+      {:ok, opts}
+    end
+  end
+
+  defp put_shared_secret(opts, realm_name, device_id) do
+    with {:ok, shared_secret} <- Queries.retrieve_shared_secret(realm_name, device_id) do
+      {:ok, Keyword.put(opts, :encrypt_with, shared_secret)}
     end
   end
 
@@ -530,14 +501,9 @@ defmodule Astarte.AppEngine.API.Device do
          interface_type = interface_descriptor.type,
          publish_opts = build_publish_opts(interface_type, reliability),
          interface_name = interface_descriptor.name,
-         publish_value =
-           maybe_apply_transport_encryption(
-             realm_name,
-             mappings,
-             value,
-             device_id,
-             expected_types
-           ),
+         publish_value = wrap_to_bson_struct(expected_types, value),
+         {:ok, publish_opts} <-
+           maybe_add_transport_encryption(publish_opts, realm_name, mappings, device_id),
          :ok <-
            ensure_publish(
              realm_name,
@@ -793,6 +759,10 @@ defmodule Astarte.AppEngine.API.Device do
   end
 
   defp publish_data(realm, device_id, interface, path, value, opts) do
+    # Le opts di publish sono interne a questo modulo (`:type`, `:reliability`): al
+    # DataTransmitter va inoltrato solo quello che riguarda il trasporto.
+    transmitter_opts = Keyword.take(opts, [:encrypt_with])
+
     case Keyword.fetch!(opts, :type) do
       :properties ->
         DataTransmitter.set_property(
@@ -800,7 +770,8 @@ defmodule Astarte.AppEngine.API.Device do
           device_id,
           interface,
           path,
-          value
+          value,
+          transmitter_opts
         )
 
       :datastream ->
@@ -814,7 +785,7 @@ defmodule Astarte.AppEngine.API.Device do
           interface,
           path,
           value,
-          qos: qos
+          Keyword.put(transmitter_opts, :qos, qos)
         )
     end
   end

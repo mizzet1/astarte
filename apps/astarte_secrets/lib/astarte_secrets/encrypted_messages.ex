@@ -34,8 +34,15 @@ defmodule Astarte.Secrets.EncryptedMessages do
   @spec encrypt(binary(), Symmetric.t()) :: binary()
   def encrypt(plaintext, %Symmetric{} = symmetric_key) do
     iv = :crypto.strong_rand_bytes(12)
+
+    # `alg` va nel protected header, non lasciato implicito: i peer lo richiedono per
+    # scegliere il cifrario, e un protected header non vuoto rende l'AAD calcolato da
+    # `enc_structure` byte-identico a quello che finisce sul filo (con phdr vuoto la
+    # libreria usa una bstr di lunghezza zero nell'AAD ma serializza `41 a0`, quindi i
+    # due lati calcolano AAD diversi e il tag GCM non torna).
+    phdr = %{alg: symmetric_key.alg}
     uhdr = %{iv: COSE.tag_as_byte(iv)}
-    msg = Encrypt0.build(plaintext, %{}, uhdr)
+    msg = Encrypt0.build(plaintext, phdr, uhdr)
 
     Encrypt0.encrypt_encode(msg, symmetric_key.alg, symmetric_key, iv)
   end
