@@ -758,6 +758,10 @@ defmodule Astarte.AppEngine.API.Device do
   end
 
   defp publish_data(realm, device_id, interface, path, value, opts) do
+    # Publish opts are internal to this module (`:type`, `:reliability`): only the
+    # transport-related ones are forwarded to the DataTransmitter.
+    transmitter_opts = Keyword.take(opts, [:encrypt_with])
+
     case Keyword.fetch!(opts, :type) do
       :properties ->
         DataTransmitter.set_property(
@@ -765,7 +769,8 @@ defmodule Astarte.AppEngine.API.Device do
           device_id,
           interface,
           path,
-          value
+          value,
+          transmitter_opts
         )
 
       :datastream ->
@@ -779,7 +784,7 @@ defmodule Astarte.AppEngine.API.Device do
           interface,
           path,
           value,
-          qos: qos
+          Keyword.put(transmitter_opts, :qos, qos)
         )
     end
   end
