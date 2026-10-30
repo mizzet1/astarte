@@ -34,77 +34,87 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGA do
   - `:relation` - the OpenFGA relation to check.
   - `:target` - the object to check it on:
     - `:realm` - the realm from the context.
-    - `:device` - the device named by the field's `hw_id` argument.
-    - `{type, arg}` - the object of that type named by the field's `arg` argument,
+    - `:device` - the device of the realm named by the field's `hw_id` argument.
+    - `{type, arg}` - the object of that type and realm named by the field's `arg` argument,
       e.g. `{:interface, :interface_name}`.
+
+  A `sub` or an argument that can't name an OpenFGA user or object is rejected
+  without calling OpenFGA.
   """
 
   @behaviour Absinthe.Middleware
 
   alias Astarte.Auth.OpenFGA
+  alias Astarte.Core.Device
 
   require Logger
 
+  # what OpenFGA accepts in a user or object id, and the longest user and object it takes
+  @valid_id ~r/\A[^\s:#]+\z/
+  @max_user_length 512
+  @max_object_length 256
+
   @impl Absinthe.Middleware
   def call(resolution, opts) do
-    context = resolution.context
-
     relation = Keyword.fetch!(opts, :relation)
     target = Keyword.fetch!(opts, :target)
 
-    with {:ok, user_id} <- user_id(context),
-         {:ok, realm_name} <- realm_name(context),
-         {:ok, object} <- object(target, realm_name, resolution.arguments) do
-      Logger.debug("Authorizing user #{inspect(user_id)} for #{relation} on #{object}")
-
-      contextual_tuples = build_contextual_tuples(context, user_id, realm_name)
-
-      "user:#{user_id}"
-      |> OpenFGA.check(relation, object, contextual_tuples)
-      |> handle_check_result(resolution)
-    else
-      {:error, message} -> unauthorized(resolution, message)
+    case authorize(resolution, relation, target) do
+      :ok -> resolution
+      {:error, message} -> Absinthe.Resolution.put_result(resolution, {:error, message})
     end
   end
 
-  defp build_contextual_tuples(context, user_id, realm_name) do
-    Enum.map(get_roles(context), fn role ->
-      %{
-        user: "user:#{user_id}",
-        relation: role,
-        object: "realm:#{realm_name}"
-      }
-    end)
+  defp authorize(resolution, relation, target) do
+    context = resolution.context
+
+    with {:ok, user_id} <- user_id(context),
+         {:ok, realm_name} <- realm_name(context),
+         {:ok, user} <- user(realm_name, user_id),
+         {:ok, object} <- object(target, realm_name, resolution.arguments) do
+      Logger.debug("Authorizing #{user} for #{relation} on #{object}")
+
+      user
+      |> OpenFGA.check(relation, object, contextual_tuples(context, user, realm_name, object))
+      |> check_result()
+    end
+  end
+
+  defp contextual_tuples(context, user, realm_name, object) do
+    realm = "realm:#{realm_name}"
+    role_tuple = %{user: user, object: realm}
+
+    role_tuples =
+      context
+      |> get_roles()
+      |> Enum.map(&Map.put(role_tuple, :relation, &1))
+
+    if object == realm,
+      do: role_tuples,
+      else: role_tuples ++ [%{user: realm, relation: "realm", object: object}]
   end
 
   defp get_roles(context) do
     case Map.get(context, :current_user) do
       %{roles: roles} when is_list(roles) -> roles
-      %{"roles" => roles} when is_list(roles) -> roles
       _ -> []
     end
   end
 
-  defp handle_check_result(:ok, resolution), do: resolution
+  defp check_result(:ok), do: :ok
 
-  defp handle_check_result({:error, :forbidden}, resolution),
-    do: unauthorized(resolution, "Forbidden: OpenFGA denied access for this action")
+  defp check_result({:error, :forbidden}),
+    do: {:error, "Forbidden: OpenFGA denied access for this action"}
 
-  defp handle_check_result({:error, reason}, resolution) do
+  defp check_result({:error, reason}) do
     Logger.error("OpenFGA check failed: #{inspect(reason)}")
-    unauthorized(resolution, "Internal Server Error during authorization")
+    {:error, "Internal Server Error during authorization"}
   end
 
-  defp unauthorized(resolution, message),
-    do: Absinthe.Resolution.put_result(resolution, {:error, message})
-
-  # current_user is either the user struct Guardian loaded, or the raw JWT
-  # claims if it didn't. Anything else is rejected instead of guessing an
-  # identity.
+  # current_user is nil when there was no valid token
   defp user_id(context) do
     case Map.get(context, :current_user) do
       %{id: id} when not is_nil(id) -> {:ok, id}
-      %{"sub" => sub} when not is_nil(sub) -> {:ok, sub}
       _ -> {:error, "Unauthorized: Missing valid user session"}
     end
   end
@@ -118,20 +128,63 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGA do
     end
   end
 
+  defp user(realm_name, user_id) do
+    with :error <- qualified_name(:user, realm_name, user_id, @max_user_length) do
+      Logger.warning(
+        "AuthorizeFGA: a token of realm #{realm_name} has an invalid sub: #{inspect(user_id)}"
+      )
+
+      {:error, "Unauthorized: invalid user identity"}
+    end
+  end
+
   defp object(:realm, realm_name, _arguments), do: {:ok, "realm:#{realm_name}"}
 
   defp object(:device, realm_name, arguments),
     do: object({:device, :hw_id}, realm_name, arguments)
 
-  defp object({type, arg}, _realm_name, arguments) do
-    case Map.get(arguments, arg) do
-      nil ->
+  defp object({type, arg}, realm_name, arguments) do
+    case Map.fetch(arguments, arg) do
+      {:ok, id} when not is_nil(id) ->
+        named_object(type, arg, id, realm_name)
+
+      _ ->
         Logger.warning("AuthorizeFGA: a #{inspect(type)}-target field was called without #{arg}")
 
         {:error, "Forbidden: OpenFGA denied access for this action"}
-
-      id ->
-        {:ok, "#{type}:#{id}"}
     end
   end
+
+  defp named_object(type, arg, id, realm_name) do
+    with :error <- qualified_object(type, realm_name, id) do
+      Logger.debug("AuthorizeFGA: invalid #{arg}: #{inspect(id)}")
+
+      {:error, "Invalid argument: #{arg}"}
+    end
+  end
+
+  # equivalent encodings of a device id must name the same object
+  defp qualified_object(:device, realm_name, hw_id) when is_binary(hw_id) do
+    case Device.decode_device_id(hw_id) do
+      {:ok, device_id} ->
+        encoded_id = Device.encode_device_id(device_id)
+        qualified_name(:device, realm_name, encoded_id, @max_object_length)
+
+      {:error, _reason} ->
+        :error
+    end
+  end
+
+  defp qualified_object(type, realm_name, id),
+    do: qualified_name(type, realm_name, id, @max_object_length)
+
+  defp qualified_name(type, realm_name, id, max_length) when is_binary(id) do
+    name = "#{type}:#{realm_name}/#{id}"
+
+    if Regex.match?(@valid_id, id) and String.length(name) <= max_length,
+      do: {:ok, name},
+      else: :error
+  end
+
+  defp qualified_name(_type, _realm_name, _id, _max_length), do: :error
 end

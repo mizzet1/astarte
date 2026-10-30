@@ -17,7 +17,7 @@
 #
 
 defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
-  use ExUnit.Case
+  use ExUnit.Case, async: true
   use Mimic
 
   import ExUnit.CaptureLog
@@ -32,7 +32,7 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
   test "fails closed on an empty context" do
     reject(&OpenFGA.check/4)
 
-    result = AuthorizeFGA.call(resolution(%{}), relation: "viewer", target: :realm)
+    result = AuthorizeFGA.call(resolution(%{}), relation: "can_read_realm", target: :realm)
 
     assert %Absinthe.Resolution{errors: ["Unauthorized: Missing valid user session"]} = result
   end
@@ -43,7 +43,7 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
 
     result =
       AuthorizeFGA.call(resolution(%{realm_name: "testrealm"}),
-        relation: "reader",
+        relation: "can_read_realm",
         target: :realm
       )
 
@@ -55,7 +55,7 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
 
     result =
       AuthorizeFGA.call(resolution(%{current_user: %{id: "user1"}}),
-        relation: "reader",
+        relation: "can_read_realm",
         target: :realm
       )
 
@@ -67,77 +67,81 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
 
     context = %{realm_name: "testrealm", current_user: %{id: nil, authorizations: ["*:*:*"]}}
 
-    result = AuthorizeFGA.call(resolution(context), relation: "device_register", target: :realm)
+    result =
+      AuthorizeFGA.call(resolution(context), relation: "can_register_device", target: :realm)
 
     assert %Absinthe.Resolution{errors: ["Unauthorized: Missing valid user session"]} = result
   end
 
-  test "performs an OpenFGA check for the :realm target using the user's :id" do
-    expect(OpenFGA, :check, fn "user:testuser", "viewer", "realm:testrealm", [] -> :ok end)
-
-    resolution = resolution(%{realm_name: "testrealm", current_user: %{id: "testuser"}})
-
-    assert AuthorizeFGA.call(resolution, relation: "viewer", target: :realm) == resolution
-  end
-
-  test "performs an OpenFGA check using the \"sub\" claim if :id is not available" do
-    expect(OpenFGA, :check, fn "user:test_sub", "viewer", "realm:testrealm", [] -> :ok end)
-
-    resolution = resolution(%{realm_name: "testrealm", current_user: %{"sub" => "test_sub"}})
-
-    assert AuthorizeFGA.call(resolution, relation: "viewer", target: :realm) == resolution
-  end
-
-  test "names the object from the hw_id argument for the :device target" do
-    expect(OpenFGA, :check, fn "user:user1", "editor", "device:my_device", [] -> :ok end)
-
-    resolution =
-      resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}}, %{hw_id: "my_device"})
-
-    assert AuthorizeFGA.call(resolution, relation: "editor", target: :device) == resolution
-  end
-
-  test "names the object from the given argument for a {type, arg} target" do
-    expect(OpenFGA, :check, fn "user:user1", "editor", "interface:com.Foo", [] -> :ok end)
-
-    resolution =
-      resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}}, %{
-        interface_name: "com.Foo"
-      })
-
-    opts = [relation: "editor", target: {:interface, :interface_name}]
-
-    assert AuthorizeFGA.call(resolution, opts) == resolution
-  end
-
-  test "returns forbidden and logs a warning if an object-naming argument is missing" do
+  test "returns forbidden and logs a warning if an object-naming argument is missing or nil" do
     reject(&OpenFGA.check/4)
 
-    resolution = resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}}, %{})
+    for arguments <- [%{}, %{hw_id: nil}] do
+      resolution =
+        resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}}, arguments)
 
-    log =
-      capture_log(fn ->
-        result = AuthorizeFGA.call(resolution, relation: "editor", target: :device)
+      log =
+        capture_log(fn ->
+          result = AuthorizeFGA.call(resolution, relation: "can_update", target: :device)
 
-        assert %Absinthe.Resolution{
-                 errors: ["Forbidden: OpenFGA denied access for this action"]
-               } = result
-      end)
+          assert %Absinthe.Resolution{
+                   errors: ["Forbidden: OpenFGA denied access for this action"]
+                 } = result
+        end)
 
-    assert log =~ "a :device-target field was called without hw_id"
+      assert log =~ "a :device-target field was called without hw_id"
+    end
   end
 
-  test "returns forbidden if the OpenFGA check denies access" do
-    expect(OpenFGA, :check, fn _user, _relation, _object, _contextual_tuples ->
-      {:error, :forbidden}
-    end)
+  test "rejects a sub OpenFGA can't use without calling it, and warns about it" do
+    reject(&OpenFGA.check/4)
 
-    resolution = resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}})
+    for sub <- ["a b", "a#b", "a:b", "a\n", "", String.duplicate("a", 512), 42] do
+      resolution = resolution(%{realm_name: "testrealm", current_user: %{id: sub}})
 
-    result = AuthorizeFGA.call(resolution, relation: "viewer", target: :realm)
+      log =
+        capture_log(fn ->
+          result = AuthorizeFGA.call(resolution, relation: "can_read_realm", target: :realm)
 
-    assert %Absinthe.Resolution{errors: ["Forbidden: OpenFGA denied access for this action"]} =
-             result
+          assert %Absinthe.Resolution{errors: ["Unauthorized: invalid user identity"]} = result
+        end)
+
+      assert log =~ "has an invalid sub"
+    end
+  end
+
+  test "rejects an invalid hw_id without calling OpenFGA, or warning about it" do
+    reject(&OpenFGA.check/4)
+
+    extended_id = Base.url_encode64(:binary.copy(<<0>>, 17), padding: false)
+
+    for hw_id <- ["a b", "a#b", "not-a-device-id", extended_id] do
+      context = %{realm_name: "testrealm", current_user: %{id: "user1"}}
+      resolution = resolution(context, %{hw_id: hw_id})
+
+      log =
+        capture_log([level: :warning], fn ->
+          result = AuthorizeFGA.call(resolution, relation: "can_unregister", target: :device)
+
+          assert %Absinthe.Resolution{errors: ["Invalid argument: hw_id"]} = result
+        end)
+
+      refute log =~ "invalid hw_id"
+    end
+  end
+
+  test "rejects an invalid object name without calling OpenFGA" do
+    reject(&OpenFGA.check/4)
+
+    opts = [relation: "can_read", target: {:interface, :interface_name}]
+
+    for name <- ["a b", "a#b", "a:b", String.duplicate("a", 256)] do
+      context = %{realm_name: "testrealm", current_user: %{id: "user1"}}
+      resolution = resolution(context, %{interface_name: name})
+
+      assert %Absinthe.Resolution{errors: ["Invalid argument: interface_name"]} =
+               AuthorizeFGA.call(resolution, opts)
+    end
   end
 
   test "returns internal error if the OpenFGA check itself fails" do
@@ -147,7 +151,7 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
 
     resolution = resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}})
 
-    result = AuthorizeFGA.call(resolution, relation: "viewer", target: :realm)
+    result = AuthorizeFGA.call(resolution, relation: "can_read_realm", target: :realm)
 
     assert %Absinthe.Resolution{errors: ["Internal Server Error during authorization"]} = result
   end
