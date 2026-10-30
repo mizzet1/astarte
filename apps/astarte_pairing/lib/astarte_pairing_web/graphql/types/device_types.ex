@@ -1,9 +1,13 @@
 defmodule Astarte.PairingWeb.GraphQL.Types.DeviceTypes do
+  @moduledoc """
+  GraphQL types describing a device, its supported protocols, and its
+  connection info.
+  """
+
   use Absinthe.Schema.Notation
 
   @desc "Represents a base Device in Astarte Pairing"
   object :device do
-    field :id, non_null(:id)
     field :hw_id, non_null(:string)
     field :credentials_secret, :string
 

@@ -1,4 +1,8 @@
 defmodule Astarte.PairingWeb.GraphQL.Resolvers.AgentResolver do
+  @moduledoc """
+  Absinthe resolvers for agent-driven device registration.
+  """
+
   alias Astarte.Pairing.Agent
   alias Astarte.Pairing.Agent.DeviceRegistrationResponse
 
@@ -39,8 +43,6 @@ defmodule Astarte.PairingWeb.GraphQL.Resolvers.AgentResolver do
   """
   def unregister_device(_parent, %{hw_id: hw_id}, %{context: context}) do
     realm = Map.fetch!(context, :realm_name)
-
-    :telemetry.execute([:astarte, :pairing, :unregister_device], %{}, %{realm: realm})
 
     case Agent.unregister_device(realm, hw_id) do
       :ok -> {:ok, "Device unregistered successfully"}
