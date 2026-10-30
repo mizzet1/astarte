@@ -90,9 +90,6 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGA do
   defp handle_check_result({:error, :forbidden}, resolution),
     do: unauthorized(resolution, "Forbidden: OpenFGA denied access for this action")
 
-  defp handle_check_result({:error, :store_not_configured}, resolution),
-    do: unauthorized(resolution, "Authorization unavailable: OpenFGA store not configured")
-
   defp handle_check_result({:error, reason}, resolution) do
     Logger.error("OpenFGA check failed: #{inspect(reason)}")
     unauthorized(resolution, "Internal Server Error during authorization")

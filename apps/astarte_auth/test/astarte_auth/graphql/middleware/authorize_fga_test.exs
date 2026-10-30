@@ -140,20 +140,6 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGATest do
              result
   end
 
-  test "says so when no OpenFGA store is configured, rather than reporting an internal error" do
-    expect(OpenFGA, :check, fn _user, _relation, _object, _contextual_tuples ->
-      {:error, :store_not_configured}
-    end)
-
-    resolution = resolution(%{realm_name: "testrealm", current_user: %{id: "user1"}})
-
-    result = AuthorizeFGA.call(resolution, relation: "viewer", target: :realm)
-
-    assert %Absinthe.Resolution{
-             errors: ["Authorization unavailable: OpenFGA store not configured"]
-           } = result
-  end
-
   test "returns internal error if the OpenFGA check itself fails" do
     expect(OpenFGA, :check, fn _user, _relation, _object, _contextual_tuples ->
       {:error, :nxdomain}
