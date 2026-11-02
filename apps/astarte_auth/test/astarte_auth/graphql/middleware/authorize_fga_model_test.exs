@@ -19,6 +19,8 @@
 defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGAModelTest do
   use Astarte.Auth.Cases.AuthorizationModel, async: true
 
+  import ExUnit.CaptureLog
+
   alias Astarte.Auth.GraphQL.Middleware.AuthorizeFGA
 
   @hw_id "f0VMRgIBAQAAAAAAAAAAAA"
@@ -85,6 +87,32 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGAModelTest do
 
     assert errors(%{id: "token_user", roles: ["data_writer"]}, opts, arguments) == []
     assert errors(%{id: "token_user", roles: ["fleet_manager"]}, opts, arguments) == [@forbidden]
+  end
+
+  test "roles the model doesn't know don't take away the access a valid one gives" do
+    user = %{id: "token_user", roles: ["fdo_manager", "offline_access", 1, "parent"]}
+
+    assert errors(user, relation: "can_read_fdo", target: :realm) == []
+  end
+
+  test "roles the model doesn't know grant nothing" do
+    user = %{id: "token_user", roles: ["offline_access"]}
+
+    assert errors(user, relation: "can_read_fdo", target: :realm) == [@forbidden]
+  end
+
+  test "a roles claim that is not a list grants nothing" do
+    user = %{id: "token_user", roles: "fdo_manager"}
+
+    assert errors(user, relation: "can_read_fdo", target: :realm) == [@forbidden]
+  end
+
+  test "logs the roles it ignores at debug level" do
+    user = %{id: "token_user", roles: ["fdo_viewer", "ignored_by_the_model"]}
+    opts = [relation: "can_read_fdo", target: :realm]
+
+    assert capture_log([level: :debug], fn -> errors(user, opts) end) =~ "ignored_by_the_model"
+    refute capture_log([level: :info], fn -> errors(user, opts) end) =~ "ignored_by_the_model"
   end
 
   test "a grant in one realm doesn't count in another" do

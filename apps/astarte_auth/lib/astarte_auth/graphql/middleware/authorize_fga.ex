@@ -39,7 +39,8 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGA do
       e.g. `{:interface, :interface_name}`.
 
   A `sub` or an argument that can't name an OpenFGA user or object is rejected
-  without calling OpenFGA.
+  without calling OpenFGA. The user's `roles` count only if they are realm roles
+  of the authorization model, the others are ignored.
   """
 
   @behaviour Absinthe.Middleware
@@ -53,6 +54,21 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGA do
   @valid_id ~r/\A[^\s:#]+\z/
   @max_user_length 512
   @max_object_length 256
+
+  @model_path :astarte_auth |> :code.priv_dir() |> Path.join("authorization_model.json")
+  @external_resource @model_path
+
+  @realm_relations @model_path
+                   |> File.read!()
+                   |> Jason.decode!()
+                   |> Map.fetch!("type_definitions")
+                   |> Enum.find(&(&1["type"] == "realm"))
+                   |> get_in(["metadata", "relations"])
+
+  # the realm relations a user can be assigned directly
+  @realm_roles for {relation, %{"directly_related_user_types" => types}} <- @realm_relations,
+                   %{"type" => "user"} <- types,
+                   do: relation
 
   @impl Absinthe.Middleware
   def call(resolution, opts) do
@@ -96,9 +112,21 @@ defmodule Astarte.Auth.GraphQL.Middleware.AuthorizeFGA do
 
   defp get_roles(context) do
     case Map.get(context, :current_user) do
-      %{roles: roles} when is_list(roles) -> roles
+      %{roles: roles} when is_list(roles) -> realm_roles(roles)
       _ -> []
     end
+  end
+
+  defp realm_roles(roles) do
+    {known, ignored} = roles |> Enum.uniq() |> Enum.split_with(&(&1 in @realm_roles))
+
+    if ignored != [] do
+      Logger.debug("AuthorizeFGA: ignoring roles the model doesn't define",
+        ignored_roles: inspect(ignored)
+      )
+    end
+
+    known
   end
 
   defp check_result(:ok), do: :ok
