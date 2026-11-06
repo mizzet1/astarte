@@ -6,7 +6,7 @@ use color_eyre::{Section, SectionExt};
 use eyre::{Context, eyre};
 use phoenix_chan::tungstenite::http;
 use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::{Client, ClientBuilder, Response, Url};
+use reqwest::{Client, ClientBuilder, Response, StatusCode, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tracing::debug;
@@ -209,6 +209,26 @@ impl ApiClient {
 
         let body = serde_json::json!({ "data": trigger });
         let res = self.client.post(url.clone()).json(&body).send().await?;
+
+        check_response(&url, res).await?;
+
+        Ok(())
+    }
+
+    /// Install the interface in the realm, succeeding if it is already installed.
+    pub async fn install_interface(&self, interface: &str) -> eyre::Result<()> {
+        let path = format!("v1/{}/interfaces", self.realm);
+        let url = self.realm_management_url.join(&path)?;
+
+        let interface: Value = serde_json::from_str(interface)?;
+        let body = serde_json::json!({ "data": interface });
+        let res = self.client.post(url.clone()).json(&body).send().await?;
+
+        if res.status() == StatusCode::CONFLICT {
+            debug!("interface already installed");
+
+            return Ok(());
+        }
 
         check_response(&url, res).await?;
 

@@ -15,7 +15,7 @@ license = "Apache-2.0"
 rust-version = "1.91.0"
 
 [workspace.dependencies]
-astarte-device-sdk = { version = "0.14.4", features = ["derive"] }
+astarte-device-sdk = { git = "https://github.com/joshuachp/astarte-device-sdk-rust", rev = "722cade767ad381e350eac60b1d2903f0b2a9104", features = ["derive", "encrypted-endpoints"] }
 astarte-e2e = { path = "./astarte-e2e" }
 async-channel = "2.5.0"
 base64 = "0.23.1"

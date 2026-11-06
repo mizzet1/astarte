@@ -14,9 +14,8 @@ mod tls;
 use astarte_device_sdk::{
     AstarteData, DeviceConnection,
     builder::DeviceBuilder,
-    pairing::api::PairingApi,
     store::SqliteStore,
-    transport::mqtt::{Credential, Mqtt, MqttArgs, MqttConfig},
+    transport::mqtt::{Credential, Mqtt, MqttArgs},
 };
 use base64::Engine;
 use base64::prelude::BASE64_STANDARD;
@@ -126,31 +125,34 @@ pub async fn device_client<P>(
     pairing_url: Url,
     store_dir: &P,
     ignore_ssl_errors: bool,
-) -> eyre::Result<(
-    AstarteClient,
-    DeviceConnection<Mqtt<SqliteStore, PairingApi>>,
-)>
+    interfaces: &[&str],
+) -> eyre::Result<(AstarteClient, DeviceConnection<Mqtt, SqliteStore>)>
 where
     P: AsRef<Path>,
 {
-    let mut mqtt_config = MqttConfig::new(MqttArgs {
+    let mqtt = Mqtt::new(MqttArgs {
         realm: realm.to_string(),
         device_id: device_id.to_string(),
         credential,
         pairing_url,
     });
 
-    if ignore_ssl_errors {
-        mqtt_config = mqtt_config.ignore_ssl_errors();
-    }
-
     let store = SqliteStore::options().with_writable_dir(&store_dir).await?;
 
-    DeviceBuilder::new()
+    let mut builder = DeviceBuilder::new().interface_directory(INTERFACE_DIR)?;
+
+    for interface in interfaces {
+        builder = builder.interface_str(interface)?;
+    }
+
+    if ignore_ssl_errors {
+        builder = builder.insecure_tls()?;
+    }
+
+    builder
         .writable_dir(store_dir)
         .store(store)
-        .interface_directory(INTERFACE_DIR)?
-        .connection(mqtt_config)
+        .connection(mqtt)
         .build()
         .await
         .wrap_err("device builder failed")

@@ -146,14 +146,26 @@ where
             .send_individual_with_timestamp(&interface_name, &data_path, data.clone(), Utc::now())
             .await?;
 
-        let incoming = channel.next_data_event().await?;
-
-        ensure!(incoming.interface() == interface_name.as_str());
-        ensure!(incoming.path() == data_path.as_str());
-        check_astarte_value(&data, &incoming.value()?)?;
-
-        info!(interface = interface_name, path = data_path, "validated")
+        expect_individual(channel, &interface_name, &data_path, &data).await?;
     }
+
+    Ok(())
+}
+
+/// Check the next data event received by Astarte matches the sent individual value.
+pub async fn expect_individual(
+    channel: &mut Room,
+    interface_name: &str,
+    data_path: &str,
+    data: &AstarteData,
+) -> eyre::Result<()> {
+    let incoming = channel.next_data_event().await?;
+
+    ensure!(incoming.interface() == interface_name);
+    ensure!(incoming.path() == data_path);
+    check_astarte_value(data, &incoming.value()?)?;
+
+    info!(interface = interface_name, path = data_path, "validated");
 
     Ok(())
 }

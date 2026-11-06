@@ -1,0 +1,17 @@
+{
+  "interface_name": "org.astarte-platform.e2e.EncryptedDeviceDatastream",
+  "version_major": 0,
+  "version_minor": 1,
+  "type": "datastream",
+  "ownership": "device",
+  "description": "Test datastream interface with encrypted endpoints.",
+  "doc": "Test interface used to test the encrypted endpoints key agreement.",
+  "mappings": [
+    {
+      "endpoint": "/integer_endpoint",
+      "encrypted": true,
+      "type": "integer",
+      "explicit_timestamp": true
+    }
+  ]
+}

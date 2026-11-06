@@ -9,7 +9,8 @@ use crate::room::TransitiveTrigger;
 use crate::{config::Config, device_client, interfaces::AstarteClient, room::Room};
 use astarte_device_sdk::AstarteData::Integer;
 use astarte_device_sdk::{
-    EventLoop, pairing::api::registration::generate_random_uuid, transport::mqtt::Credential,
+    prelude::Connection as _,
+    transport::mqtt::{Credential, pairing::registration::generate_random_uuid},
 };
 
 #[cfg(feature = "clap")]
@@ -51,6 +52,7 @@ pub struct ConnectionBuilder {
     credentials_secret: Option<String>,
     receive_interface_data: bool,
     volatile_triggers: Vec<TransitiveTrigger>,
+    interfaces: Vec<&'static str>,
 }
 
 impl ConnectionBuilder {
@@ -64,7 +66,18 @@ impl ConnectionBuilder {
             credentials_secret: None,
             receive_interface_data: true,
             volatile_triggers: vec![],
+            interfaces: vec![],
         })
+    }
+
+    /// Install the interface in the realm and add it to the device introspection.
+    ///
+    /// Needed for interfaces with encrypted mappings, since astartectl drops the
+    /// `encrypted` flag when installing them.
+    pub fn with_interface(mut self, interface: &'static str) -> Self {
+        self.interfaces.push(interface);
+
+        self
     }
 
     pub async fn connect(self) -> eyre::Result<Connection> {
@@ -74,6 +87,7 @@ impl ConnectionBuilder {
             credentials_secret,
             receive_interface_data,
             mut volatile_triggers,
+            interfaces,
         } = self;
 
         let credential = match credentials_secret {
@@ -141,6 +155,10 @@ impl ConnectionBuilder {
             .install_trigger(&device_connected_trigger)
             .await?;
 
+        for interface in &interfaces {
+            api_client.install_interface(interface).await?;
+        }
+
         let (client, connection) = device_client(
             &config.astarte.realm,
             &device_id,
@@ -148,6 +166,7 @@ impl ConnectionBuilder {
             config.astarte.pairing_url()?,
             &store,
             config.astarte.ignore_ssl,
+            &interfaces,
         )
         .await
         .wrap_err("couldn't connect the device")?;
