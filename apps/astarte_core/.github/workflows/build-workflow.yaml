@@ -22,25 +22,25 @@ jobs:
     env:
       MIX_ENV: ci
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: deps
           key: ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: _build
           key: ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-_build-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-_build-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
       - id: plt_cache
-        uses: actions/cache@v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: dialyzer_cache
           key: ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-dialyzer_cache-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-dialyzer_cache-
-      - uses: erlef/setup-beam@v1.18
+      - uses: erlef/setup-beam@5304e04ea2b355f03681464e683d92e3b2f18451 # v1.18
         with:
           otp-version: ${{ env.otp_version }}
           elixir-version: ${{ env.elixir_version }}
@@ -72,18 +72,18 @@ jobs:
     env:
       MIX_ENV: test
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/cache@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: deps
           key: ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-mix-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-      - uses: actions/cache@v4
+      - uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: _build
           key: ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-_build-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}-${{ github.sha }}
           restore-keys: |
             ${{ runner.os }}-${{ env.elixir_version }}-${{ env.otp_version }}-_build-${{ hashFiles(format('{0}{1}', github.workspace, '/mix.lock')) }}
-      - uses: erlef/setup-beam@v1.18
+      - uses: erlef/setup-beam@5304e04ea2b355f03681464e683d92e3b2f18451 # v1.18
         with:
           otp-version: ${{ env.otp_version }}
           elixir-version: ${{ env.elixir_version }}
@@ -95,7 +95,7 @@ jobs:
         run: mix compile
       - name: Test and Coverage
         run: mix coveralls.json  --exclude wip -o coverage_results
-      - uses: codecov/codecov-action@v5
+      - uses: codecov/codecov-action@0fb7174895f61a3b6b78fc075e0cd60383518dac # v5
         name: Upload Coverage Results to CodeCov
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
