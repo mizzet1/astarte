@@ -80,7 +80,7 @@ defmodule Astarte.TriggerEngine.Mixfile do
       {:astarte_data_access, in_umbrella: true},
       {:astarte_generators, in_umbrella: true, only: [:dev, :test]},
       {:skogsra, "~> 2.2"},
-      {:observer_cli, "~> 1.8"},
+      {:observer_cli, "~> 2.0"},
       {:recon, "2.5.6", override: true},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:excoveralls, "~> 0.15", only: :test},
