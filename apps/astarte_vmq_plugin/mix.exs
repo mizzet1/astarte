@@ -102,7 +102,7 @@ defmodule Astarte.VMQ.Plugin.Mixfile do
       {:mimic, "~> 2.0", only: [:test, :dev]},
       {:mox, "~> 1.0", only: :test},
       # cowboy/ranch are provided by the underlying VerneMQ host when in production env
-      {:cowboy, "~> 2.18.0", only: :test},
+      {:cowboy, "~> 2.20.0", only: :test},
       {:ranch, "~> 2.2"},
       {:httpoison, "~> 3.0", only: :test}
     ]
