@@ -24,7 +24,7 @@ defmodule Astarte.Import.MixProject do
   defp deps do
     [
       {:exandra, github: "vinniefranco/exandra"},
-      {:ecto, "~>3.13"},
+      {:ecto, "~> 3.13"},
       {:logfmt, "~> 3.3"},
       {:astarte_core, path: astarte_app("astarte_core"), override: true},
       {:astarte_data_access, path: astarte_app("astarte_data_access")},
