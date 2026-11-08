@@ -92,7 +92,7 @@ defmodule Astarte.DataUpdaterPlant.Mixfile do
       {:telemetry_metrics, "~> 1.1"},
       {:telemetry_poller, "~> 1.3"},
       {:telemetry_metrics_prometheus_core, "~> 1.2"},
-      {:observer_cli, "~> 1.8"},
+      {:observer_cli, "~> 2.0"},
       {:recon, "2.5.6", override: true},
       {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:uuid, "~> 2.0", hex: :uuid_erl},
