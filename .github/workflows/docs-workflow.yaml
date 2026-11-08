@@ -21,7 +21,7 @@ on:
 
 jobs:
   generate_openapi_specs:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:
@@ -40,7 +40,7 @@ jobs:
             filename: astarte_realm_management.yaml
 
     steps:
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - name: Generate ${{ matrix.app.name }} OpenAPI spec
         uses: team-alembic/staple-actions/actions/mix-task@a74b3b61209d35d45526df174766632f8aee03ed
         with:
@@ -54,7 +54,7 @@ jobs:
             --vendor-extensions=false
             ${{ matrix.app.filename }}
       - name: Upload ${{ matrix.app.name }} artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: ${{ matrix.app.name }}-openapi-spec
           path: apps/${{ matrix.app.name }}/${{ matrix.app.filename }}
@@ -64,22 +64,22 @@ jobs:
   docs:
     needs:
       - generate_openapi_specs
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     steps:
       # Checkout the source
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           path: astarte
       - name: Make .tool-versions available for staple-actions
         run: cp astarte/.tool-versions .
       - name: Download OpenAPI specs
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
         with:
           path: ./astarte/generated-openapi
           pattern: "*-openapi-spec"
           merge-multiple: true
       # Checkout the docs repository
-      - uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: astarte-platform/docs
           path: docs
@@ -97,7 +97,7 @@ jobs:
           cp -r astarte/doc/doc/* docs/$DOCS_DIRNAME/
           cp docs/astarte/common_vars.js docs/$DOCS_DIRNAME/docs_config.js
       - name: Checkout Swagger UI
-        uses: actions/checkout@ee0669bd1cc54295c223e0bb666b733df41de1c5 # v2
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           repository: swagger-api/swagger-ui
           path: swagger-ui

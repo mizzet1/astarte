@@ -30,13 +30,13 @@ env:
 jobs:
   lint:
     name: Lint and unit test
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-26.04
     defaults:
       run:
         working-directory: tools/astarte-e2e-next
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions-rust-lang/setup-rust-toolchain@v1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions-rust-lang/setup-rust-toolchain@a188e68d0fd2bd36ad51dccb2b07ba6e75105f30 # v2
       - uses: mozilla-actions/sccache-action@v0.0.11
       - uses: taiki-e/install-action@v2
         with:
