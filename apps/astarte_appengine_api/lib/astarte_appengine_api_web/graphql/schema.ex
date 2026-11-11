@@ -70,4 +70,16 @@ defmodule Astarte.AppEngine.APIWeb.GraphQL.Schema do
       resolve &StatsResolver.get_devices_stats/3
     end
   end
+
+  mutation do
+    @desc "Updates the aliases, the attributes and the credentials inhibition of a device"
+    field :update_device_status, :device do
+      arg :device_id, non_null(:string)
+      arg :input, non_null(:device_status_input)
+
+      middleware AuthorizeFGA, relation: "can_update", target: {:device, :device_id}
+
+      resolve &DeviceResolver.update_device_status/3
+    end
+  end
 end

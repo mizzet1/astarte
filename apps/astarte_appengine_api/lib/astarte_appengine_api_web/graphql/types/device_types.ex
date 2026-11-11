@@ -119,6 +119,31 @@ defmodule Astarte.AppEngine.APIWeb.GraphQL.Types.DeviceTypes do
     field :deletion_in_progress, non_null(:boolean)
   end
 
+  @desc "A key to set to a value, or to remove"
+  input_object :map_entry_input do
+    @desc "The key of the entry"
+    field :key, non_null(:string)
+
+    @desc "The value to set the key to, or null to remove the key. It can't be omitted."
+    field :value, :string
+  end
+
+  @desc """
+  The changes to the status of a device. Aliases and attributes that are not
+  listed are left unchanged, as is everything when a field is omitted or null,
+  except for credentialsInhibited: a null clears it.
+  """
+  input_object :device_status_input do
+    @desc "The aliases to set or remove, by tag"
+    field :aliases, list_of(non_null(:map_entry_input))
+
+    @desc "The attributes to set or remove"
+    field :attributes, list_of(non_null(:map_entry_input))
+
+    @desc "Whether the device is prevented from requesting new credentials"
+    field :credentials_inhibited, :boolean
+  end
+
   @desc "A page of devices"
   object :device_page do
     @desc "The devices of the page"

@@ -21,6 +21,7 @@ defmodule Astarte.AppEngine.APIWeb.GraphQL.Resolvers.DeviceResolver do
   """
 
   alias Astarte.AppEngine.API.Device
+  alias Astarte.AppEngine.APIWeb.GraphQL.DeviceStatusPatch
 
   def get_device(_parent, %{device_id: device_id}, %{context: %{realm_name: realm_name}}) do
     Device.get_device_status!(realm_name, device_id)
@@ -28,5 +29,13 @@ defmodule Astarte.AppEngine.APIWeb.GraphQL.Resolvers.DeviceResolver do
 
   def list_devices(_parent, args, %{context: %{realm_name: realm_name}}) do
     Device.list_devices!(realm_name, Map.put(args, :details, true))
+  end
+
+  def update_device_status(_parent, %{device_id: device_id, input: input}, %{
+        context: %{realm_name: realm_name}
+      }) do
+    with {:ok, patch} <- DeviceStatusPatch.from_input(input) do
+      Device.merge_device_status(realm_name, device_id, patch)
+    end
   end
 end
