@@ -63,7 +63,7 @@ defmodule Astarte.AppEngine.API.Device.DeviceStatus do
       aliases: row.aliases || %{},
       introspection:
         build_introspection(row, exchanged_msgs_by_interface, exchanged_bytes_by_interface),
-      connected: row.connected,
+      connected: row.connected || false,
       last_connection: truncate_datetime(row.last_connection),
       last_disconnection: truncate_datetime(row.last_disconnection),
       first_registration: truncate_datetime(row.first_registration),
@@ -84,9 +84,9 @@ defmodule Astarte.AppEngine.API.Device.DeviceStatus do
     }
   end
 
-  # Helper for actual introspection
+  # an interface with only a major or only a minor version is a corrupted entry
   defp build_introspection(row, msgs_map, bytes_map) do
-    Map.merge(row.introspection || %{}, row.introspection_minor || %{}, fn
+    Map.intersect(row.introspection || %{}, row.introspection_minor || %{}, fn
       interface_name, major, minor ->
         build_interface_info(interface_name, major, minor, msgs_map, bytes_map)
     end)
