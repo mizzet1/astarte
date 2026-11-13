@@ -41,6 +41,11 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
 
   require Logger
 
+  # Key-agreement errors are answered with ExchangeFailed (except a malformed
+  # ExchangeFailed from the device) and never wipe the MQTT session: that would
+  # also drop the device's subscriptions and offline queue.
+  @key_agreement_error_opts [ask_clean_session: false]
+
   @doc """
   Handles control messages published by the device on various control topics.
 
@@ -214,7 +219,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
               error: :key_agreement_transition_error
             }
 
-            Core.Error.handle_error(context, error)
+            Core.Error.handle_error(context, error, @key_agreement_error_opts)
 
           {:error, reason} ->
             Logger.error("[keyAgreement/0] Failed to send ExchangeResp: #{inspect(reason)}")
@@ -233,7 +238,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
               error: :key_agreement_transition_error
             }
 
-            Core.Error.handle_error(context, error)
+            Core.Error.handle_error(context, error, @key_agreement_error_opts)
         end
 
       {:error, reason, message} ->
@@ -260,7 +265,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           error: :key_agreement_error
         }
 
-        Core.Error.handle_error(context, error)
+        Core.Error.handle_error(context, error, @key_agreement_error_opts)
     end
   end
 
@@ -289,6 +294,15 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           tag: "secret_hash_invalid_payload"
         )
 
+        _ =
+          send_exchange_failed(
+            new_state.realm,
+            new_state.device_id,
+            0,
+            :invalid_argument,
+            "invalid SecretHash payload"
+          )
+
         context = %{
           state: new_state,
           payload: payload,
@@ -303,7 +317,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           error: :secret_hash_error
         }
 
-        Core.Error.handle_error(context, error)
+        Core.Error.handle_error(context, error, @key_agreement_error_opts)
     end
   end
 
@@ -361,7 +375,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
               error: :key_agreement_transition_error
             }
 
-            Core.Error.handle_error(context, error)
+            Core.Error.handle_error(context, error, @key_agreement_error_opts)
         end
 
       {:error, reason, message} ->
@@ -386,7 +400,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           error: :hash_ok_error
         }
 
-        Core.Error.handle_error(context, error)
+        Core.Error.handle_error(context, error, @key_agreement_error_opts)
     end
   end
 
@@ -701,7 +715,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
       error: :exchange_failed_error
     }
 
-    Core.Error.handle_error(context, error)
+    Core.Error.handle_error(context, error, @key_agreement_error_opts)
   end
 
   defp send_hash_ok(realm, device_id, seq_num) do

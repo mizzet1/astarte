@@ -570,7 +570,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         {:error, :database_error}
       end)
 
-      expect(Core.Device, :ask_clean_session, fn state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "key_agreement_transition_error",
@@ -618,7 +618,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         {:ok, %{local_matches: 0, remote_matches: 0}}
       end)
 
-      expect(Core.Device, :ask_clean_session, fn state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "key_agreement_transition_error",
@@ -656,7 +656,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         {:ok, %{local_matches: 0, remote_matches: 0}}
       end)
 
-      expect(Core.Device, :ask_clean_session, fn state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "key_agreement_transition_error",
@@ -763,7 +763,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
     setup context do
       %{state: state} = context
 
-      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "key_agreement_error",
@@ -1311,13 +1311,23 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
       assert {:established, _} = new_state.encrypted_endpoints_key
     end
 
-    test "discards payload and logs an error if the CBOR structure is invalid", context do
+    test "discards payload and replies ExchangeFailed if the CBOR structure is invalid",
+         context do
       %{state: state} = context
 
       # Corrupted/invalid payload
       payload = <<0xFF, 0xFE, 0x00>>
 
-      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
+
+      expect(VMQPlugin, :publish, fn topic, payload_bytes, 2 ->
+        assert String.ends_with?(topic, "/control/keyAgreement/4")
+
+        assert {:ok, %ExchangeFailed{reason: :invalid_argument, seq_num: 0}} =
+                 ExchangeFailed.cbor_decode(payload_bytes)
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "secret_hash_error",
@@ -1521,7 +1531,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
     test "discards payload and logs an error if the CBOR structure is invalid", context do
       %{state: state, invalid_hash_ok_payload: payload} = context
 
-      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "hash_ok_error",
@@ -1551,7 +1561,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
          context do
       %{state: state, valid_hash_ok_payload: payload} = context
 
-      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "key_agreement_transition_error",
@@ -1645,7 +1655,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
     test "discards payload and logs an error if the CBOR structure is invalid", context do
       %{state: state, invalid_exchange_failed_payload: payload} = context
 
-      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+      reject(Core.Device, :ask_clean_session, 2)
 
       expect(Core.Trigger, :execute_device_error_triggers, fn _state,
                                                               "exchange_failed_error",
