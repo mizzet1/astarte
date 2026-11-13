@@ -33,6 +33,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
   alias Astarte.DataUpdaterPlant.DataUpdater.Cache
   alias Astarte.DataUpdaterPlant.DataUpdater.CachedPath
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState
   alias Astarte.DataUpdaterPlant.DataUpdater.PayloadsDecoder
   alias Astarte.DataUpdaterPlant.DataUpdater.Queries
   alias Astarte.DataUpdaterPlant.DataUpdater.State
@@ -432,7 +433,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
       status ->
         error = %{
           message:
-            "Failed to decode incoming encrypted message for device #{context.hardware_id} in realm #{context.state.realm}: device shared key not established. Current key agreement status: #{status}.",
+            "Failed to decode incoming encrypted message for device #{context.hardware_id} in realm #{context.state.realm}: device shared key not established. Current key agreement status: #{inspect(HandshakeState.name(status))}.",
           logger_metadata: [tag: "key_agreement_error"],
           error_name: "key_agreement_error",
           error: :key_agreement_error

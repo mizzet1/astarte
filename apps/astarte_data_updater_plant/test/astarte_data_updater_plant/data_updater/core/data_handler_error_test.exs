@@ -32,12 +32,15 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
   alias Astarte.Core.Mapping.ValueType
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange
   alias Astarte.DataUpdaterPlant.DataUpdater.PayloadsDecoder
   alias Astarte.Secrets.EncryptedMessages
   alias COSE.Keys.Symmetric
 
   import Astarte.DataUpdaterPlant.Helpers.DataUpdater
   import Astarte.InterfaceUpdateGenerators
+  import ExUnit.CaptureLog
 
   setup_all %{realm_name: realm_name, device: device, interfaces: interfaces} do
     state = dump_state(realm_name, device.encoded_id)
@@ -553,6 +556,55 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
 
       assert_receive {[:astarte, :data_updater_plant, :encrypted_message_handling_failure],
                       ^telemetry_handler_ref, %{}, %{realm: ^realm, reason: :key_agreement_error}}
+    end
+
+    test "encrypted payloads in every non-established key state, without crashing or leaking the key",
+         context do
+      %{
+        state: state,
+        interfaces_encrypted_endpoints: interfaces
+      } = context
+
+      %{interface: interface, path: path, payload: payload} =
+        gen_context(state, interfaces)
+        |> Enum.at(0)
+
+      init_exchange = InitExchange.new(0)
+
+      key_states = [
+        :uninitialized,
+        {:handshake_started, %{key_type: init_exchange.key_type, init_exchange: init_exchange}},
+        {:failed, :invalid_argument}
+      ]
+
+      for key_state <- key_states do
+        Astarte.DataUpdaterPlant.RPC.VMQPlugin.ClientMock
+        |> expect(:disconnect, fn %{client_id: _client_id, discard_state: _discard_state} ->
+          :ok
+        end)
+
+        # `shared_secret` still holds a key, as it does after a failed rotation
+        state = %{state | encrypted_endpoints_key: key_state}
+        timestamp = System.system_time(:microsecond) * 10
+
+        log =
+          capture_log(fn ->
+            assert {:discard, :key_agreement_error, _, _} =
+                     DataHandler.handle_data(
+                       state,
+                       interface,
+                       path,
+                       payload,
+                       timestamp,
+                       System.monotonic_time()
+                     )
+          end)
+
+        assert log =~
+                 "Current key agreement status: #{inspect(HandshakeState.name(key_state))}"
+
+        refute log =~ inspect(state.shared_secret.k)
+      end
     end
 
     test "issues during decryption phase when receiving encrypted payloads", context do

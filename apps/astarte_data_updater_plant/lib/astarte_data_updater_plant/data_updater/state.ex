@@ -82,6 +82,10 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.State do
 
   @type data_triggers_type :: %{data_trigger_key => [DataTrigger.t()]}
 
+  # Both fields hold the device's shared secret in clear: keep them out of logs
+  # and crash reports, which print the process state with `inspect/2`.
+  @derive {Inspect, except: [:encrypted_endpoints_key, :shared_secret]}
+
   typedstruct do
     @typedoc "State struct"
 
