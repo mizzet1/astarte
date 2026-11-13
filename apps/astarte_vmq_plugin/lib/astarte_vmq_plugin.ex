@@ -29,6 +29,10 @@ defmodule Astarte.VMQ.Plugin do
   alias Mississippi.Producer.EventsProducer
 
   @max_rand trunc(:math.pow(2, 32) - 1)
+
+  # auth_on_register and on_register run in the same MQTT session process, so
+  # the clean session flag is carried from one to the other in its dictionary.
+  @clean_session_key :astarte_clean_session
   @vernemq_api Application.compile_env(
                  :astarte_vmq_plugin,
                  :vernemq_api,
@@ -40,9 +44,12 @@ defmodule Astarte.VMQ.Plugin do
     :next
   end
 
-  def auth_on_register(_peer, {mountpoint, _client_id}, username, _password, _cleansession) do
+  def auth_on_register(_peer, {mountpoint, _client_id}, username, _password, clean_session) do
     if String.contains?(username, "/") do
-      authorize_registration(mountpoint, username)
+      with {:ok, _modifiers} = authorized <- authorize_registration(mountpoint, username) do
+        _ = Process.put(@clean_session_key, clean_session)
+        authorized
+      end
     else
       # Not a device, let someone else decide
       :next
@@ -110,18 +117,28 @@ defmodule Astarte.VMQ.Plugin do
     end
   end
 
+  # The MQTT session was destroyed with the connection (clean session, or a
+  # cleanup forced by a takeover or by Astarte).
   def on_client_gone({_mountpoint, client_id}) do
     timestamp = now_us_x10_timestamp()
 
     get_connection_synchronizer_process!(client_id)
-    |> Synchronizer.handle_disconnection(timestamp)
+    |> Synchronizer.handle_disconnection(timestamp, x_astarte_session_ended: "true")
   end
 
+  # The MQTT session outlives the connection: its subscriptions and offline
+  # queue are kept until the device reconnects or the session expires.
   def on_client_offline({_mountpoint, client_id}) do
     timestamp = now_us_x10_timestamp()
 
     get_connection_synchronizer_process!(client_id)
-    |> Synchronizer.handle_disconnection(timestamp)
+    |> Synchronizer.handle_disconnection(timestamp, x_astarte_session_ended: "false")
+  end
+
+  # A session kept after on_client_offline expired without the device coming
+  # back. Only offline sessions expire, so there is no connection to order with.
+  def on_session_expired({_mountpoint, client_id}) do
+    publish_event(client_id, "session_expired", now_us_x10_timestamp())
   end
 
   def on_register({ip_addr, _port}, {_mountpoint, client_id}, _username) do
@@ -137,8 +154,12 @@ defmodule Astarte.VMQ.Plugin do
           |> :inet.ntoa()
           |> to_string()
 
+        headers =
+          [x_astarte_remote_ip: ip_string] ++
+            clean_session_header(Process.get(@clean_session_key))
+
         get_connection_synchronizer_process!(client_id)
-        |> Synchronizer.handle_connection(timestamp, x_astarte_remote_ip: ip_string)
+        |> Synchronizer.handle_connection(timestamp, headers)
 
       # Not a device, ignoring it
       _ ->
@@ -275,6 +296,11 @@ defmodule Astarte.VMQ.Plugin do
 
     :ok = EventsProducer.publish(payload, publish_opts)
   end
+
+  defp clean_session_header(clean_session) when is_boolean(clean_session),
+    do: [x_astarte_clean_session: to_string(clean_session)]
+
+  defp clean_session_header(_unknown), do: []
 
   defp now_us_x10_timestamp do
     DateTime.utc_now()

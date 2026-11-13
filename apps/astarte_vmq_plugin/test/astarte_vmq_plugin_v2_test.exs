@@ -297,7 +297,8 @@ defmodule Astarte.VMQ.Plugin.Test2 do
                "x_astarte_vmqamqp_proto_ver" => 1,
                "x_astarte_msg_type" => "disconnection",
                "x_astarte_realm" => ^realm,
-               "x_astarte_device_id" => ^device_id
+               "x_astarte_device_id" => ^device_id,
+               "x_astarte_session_ended" => "true"
              } = amqp_headers_to_map(headers)
 
       assert String.starts_with?(message_id, message_id_prefix(realm, device_id, timestamp))
@@ -320,10 +321,62 @@ defmodule Astarte.VMQ.Plugin.Test2 do
                "x_astarte_vmqamqp_proto_ver" => 1,
                "x_astarte_msg_type" => "disconnection",
                "x_astarte_realm" => ^realm,
-               "x_astarte_device_id" => ^device_id
+               "x_astarte_device_id" => ^device_id,
+               "x_astarte_session_ended" => "false"
              } = amqp_headers_to_map(headers)
 
       assert String.starts_with?(message_id, message_id_prefix(realm, device_id, timestamp))
+    end
+
+    @tag :on_session_expired
+    test "on_session_expired generates a session_expired message", %{
+      realm_name: realm,
+      device_id: device_id
+    } do
+      Plugin.on_session_expired({:dontcare, "#{realm}/#{device_id}"})
+
+      assert_receive {:amqp_msg, "", %{headers: headers, timestamp: timestamp}}
+
+      assert_in_delta timestamp, now_us_x10_timestamp(), @max_timestamp_difference
+
+      assert %{
+               "x_astarte_vmqamqp_proto_ver" => 1,
+               "x_astarte_msg_type" => "session_expired",
+               "x_astarte_realm" => ^realm,
+               "x_astarte_device_id" => ^device_id
+             } = amqp_headers_to_map(headers)
+    end
+
+    @tag :on_register
+    @tag :database
+    test "registration carries the clean session flag seen at authentication", %{
+      realm_name: realm,
+      device_id: device_id
+    } do
+      Database.insert_device_into_devices!(realm, device_id)
+      device_base_path = "#{realm}/#{device_id}"
+
+      for clean_session <- [true, false] do
+        # VerneMQ calls both hooks from the MQTT session process
+        assert {:ok, _modifiers} =
+                 Plugin.auth_on_register(
+                   :dontcare,
+                   {"/", :dontcare},
+                   device_base_path,
+                   :dontcare,
+                   clean_session
+                 )
+
+        Plugin.on_register({{1, 2, 3, 4}, :dontcare}, {:dontcare, device_base_path}, :dontcare)
+
+        assert_receive {:amqp_msg, "", %{headers: headers}}
+        expected_flag = to_string(clean_session)
+
+        assert %{
+                 "x_astarte_msg_type" => "connection",
+                 "x_astarte_clean_session" => ^expected_flag
+               } = amqp_headers_to_map(headers)
+      end
     end
 
     @tag :on_publish
@@ -471,6 +524,12 @@ defmodule Astarte.VMQ.Plugin.Test2 do
     @tag :on_client_offline
     test "do not generate disconnection message on_client_offline", context do
       Plugin.on_client_offline({:dontcare, context.not_a_device_id})
+      refute_receive {:amqp_msg, _payload, _meta}
+    end
+
+    @tag :on_session_expired
+    test "do not generate session_expired message on_session_expired", context do
+      Plugin.on_session_expired({:dontcare, context.not_a_device_id})
       refute_receive {:amqp_msg, _payload, _meta}
     end
 

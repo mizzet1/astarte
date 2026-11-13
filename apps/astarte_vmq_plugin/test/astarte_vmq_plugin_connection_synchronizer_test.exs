@@ -261,6 +261,58 @@ defmodule Astarte.VMQ.Plugin.Connection.SynchronizerTest do
     end
   end
 
+  test "headers of both events are passed through unchanged, in both arrival orders" do
+    for first_event <- [:connection, :disconnection] do
+      connection_timestamp = now_us_x10_timestamp()
+      disconnection_timestamp = connection_timestamp - 1
+      reconciler_pid = get_connection_reconciler_process!(@device_base_path)
+
+      connect = fn ->
+        Synchronizer.handle_connection(reconciler_pid, connection_timestamp,
+          x_astarte_remote_ip: "1.2.3.4",
+          x_astarte_clean_session: "false"
+        )
+      end
+
+      disconnect = fn ->
+        Synchronizer.handle_disconnection(reconciler_pid, disconnection_timestamp,
+          x_astarte_session_ended: "false"
+        )
+      end
+
+      # both calls block until the other event arrives (or the window closes)
+      {first, second} =
+        case first_event do
+          :connection -> {connect, disconnect}
+          :disconnection -> {disconnect, connect}
+        end
+
+      Task.start(first)
+      Process.sleep(5)
+      Task.start(second)
+
+      assert_receive {:amqp_msg, "",
+                      %{headers: disconnection_headers, timestamp: ^disconnection_timestamp}},
+                     1_000
+
+      assert %{"x_astarte_msg_type" => "disconnection", "x_astarte_session_ended" => "false"} =
+               amqp_headers_to_map(disconnection_headers)
+
+      assert_receive {:amqp_msg, "",
+                      %{headers: connection_headers, timestamp: ^connection_timestamp}},
+                     1_000
+
+      assert %{
+               "x_astarte_msg_type" => "connection",
+               "x_astarte_remote_ip" => "1.2.3.4",
+               "x_astarte_clean_session" => "false"
+             } = amqp_headers_to_map(connection_headers)
+
+      # the reconciler is gone before the next round starts
+      Process.sleep(100)
+    end
+  end
+
   defp amqp_headers_to_map(headers) do
     Enum.reduce(headers, %{}, fn {key, _type, value}, acc ->
       Map.put(acc, key, value)
