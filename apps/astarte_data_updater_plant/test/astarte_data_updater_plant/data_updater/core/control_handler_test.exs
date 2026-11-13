@@ -543,6 +543,139 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
     end
   end
 
+  describe "/keyAgreement/0 - persisting the shared secret" do
+    test "saves the new key before publishing ExchangeResp", context do
+      %{state: state, init_exchange: init_exchange, init_exchange_payload: payload} = context
+
+      expect(VMQPlugin, :publish, 1, fn topic, payload_bytes, 2 ->
+        assert String.ends_with?(topic, "/control/keyAgreement/1")
+
+        # by the time the device can derive the key, AppEngine can read it
+        secret = device_secret(init_exchange, payload_bytes)
+
+        assert %{shared_secret: %Symmetric{k: ^secret}} =
+                 Queries.get_device_status(state.realm, state.device_id)
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      assert {:ack, :ok, _new_state} =
+               ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
+    end
+
+    test "sends ExchangeFailed and no ExchangeResp when the key can't be saved", context do
+      %{state: state, init_exchange: init_exchange, init_exchange_payload: payload} = context
+
+      expect(Queries, :save_shared_secret, fn _realm, _device_id, _secret ->
+        {:error, :database_error}
+      end)
+
+      expect(Core.Device, :ask_clean_session, fn state, _ts -> {:ok, state} end)
+
+      expect(Core.Trigger, :execute_device_error_triggers, fn _state,
+                                                              "key_agreement_transition_error",
+                                                              _meta,
+                                                              _ts ->
+        :ok
+      end)
+
+      # a single publish, and it is the ExchangeFailed
+      expect(VMQPlugin, :publish, 1, fn topic, payload_bytes, 2 ->
+        assert String.ends_with?(topic, "/control/keyAgreement/4")
+
+        assert {:ok, %ExchangeFailed{reason: :internal_server_error, seq_num: seq_num}} =
+                 ExchangeFailed.cbor_decode(payload_bytes)
+
+        assert seq_num == init_exchange.seq_num
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      assert {{:discard, _result, new_state, {:continue, continue_arg}}, _log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
+               end)
+
+      assert new_state.encrypted_endpoints_key == state.encrypted_endpoints_key
+      assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
+    end
+
+    test "restores the previous key when ExchangeResp can't be published", context do
+      %{state: state, init_exchange_payload: payload} = context
+
+      # establish a first key, stored in the database
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, 2 ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      {:ack, :ok, established_state} =
+        ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
+
+      %Symmetric{k: old_secret} = established_state.shared_secret
+
+      # the device went away before the rotation's ExchangeResp could reach it
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, 2 ->
+        {:ok, %{local_matches: 0, remote_matches: 0}}
+      end)
+
+      expect(Core.Device, :ask_clean_session, fn state, _ts -> {:ok, state} end)
+
+      expect(Core.Trigger, :execute_device_error_triggers, fn _state,
+                                                              "key_agreement_transition_error",
+                                                              _meta,
+                                                              _ts ->
+        :ok
+      end)
+
+      rotation_payload = 1 |> InitExchange.new() |> InitExchange.cbor_encode()
+
+      assert {{:discard, _result, new_state, {:continue, continue_arg}}, _log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(
+                   established_state,
+                   "/keyAgreement/0",
+                   rotation_payload,
+                   0
+                 )
+               end)
+
+      assert {:established, %{shared_secret: ^old_secret}} = new_state.encrypted_endpoints_key
+      assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
+
+      assert %{shared_secret: %Symmetric{k: ^old_secret}} =
+               Queries.get_device_status(state.realm, state.device_id)
+    end
+
+    test "clears the key it saved when ExchangeResp can't be published to a device without a previous key",
+         context do
+      %{state: state, init_exchange_payload: payload} = context
+
+      :ok = Queries.clear_shared_secret(state.realm, state.device_id)
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, 2 ->
+        {:ok, %{local_matches: 0, remote_matches: 0}}
+      end)
+
+      expect(Core.Device, :ask_clean_session, fn state, _ts -> {:ok, state} end)
+
+      expect(Core.Trigger, :execute_device_error_triggers, fn _state,
+                                                              "key_agreement_transition_error",
+                                                              _meta,
+                                                              _ts ->
+        :ok
+      end)
+
+      assert {{:discard, _result, new_state, {:continue, continue_arg}}, _log} =
+               with_log(fn ->
+                 ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
+               end)
+
+      assert new_state.encrypted_endpoints_key == :uninitialized
+      assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
+      assert %{shared_secret: nil} = Queries.get_device_status(state.realm, state.device_id)
+    end
+  end
+
   describe "key agreement after the device process reloads the key from the database" do
     setup context do
       %{state: state, init_exchange_payload: payload} = context
@@ -1049,7 +1182,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
       {:ok, realm: state.realm, device_id: state.device_id}
     end
 
-    test "publishes a well-formed CBOR ExchangeResp (X25519) and returns the message",
+    test "publishes a well-formed CBOR ExchangeResp (X25519)",
          context do
       %{realm: realm, device_id: device_id, init_exchange: init_exchange} = context
 
@@ -1070,14 +1203,15 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
-      assert {:ok, %ExchangeResp{} = msg} =
-               ControlHandler.send_exchange_resp(realm, device_id, init_exchange)
-
-      assert msg.seq_num == init_exchange.seq_num
-      assert %COSE.Keys.OKP{} = msg.public_key
+      assert :ok =
+               ControlHandler.send_exchange_resp(
+                 realm,
+                 device_id,
+                 ExchangeResp.new(init_exchange)
+               )
     end
 
-    test "publishes a well-formed CBOR ExchangeResp (P-256) and returns the message",
+    test "publishes a well-formed CBOR ExchangeResp (P-256)",
          context do
       %{realm: realm, device_id: device_id, p256_init_exchange: init_exchange} = context
 
@@ -1098,11 +1232,12 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
         {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
-      assert {:ok, %ExchangeResp{} = msg} =
-               ControlHandler.send_exchange_resp(realm, device_id, init_exchange)
-
-      assert msg.seq_num == init_exchange.seq_num
-      assert %COSE.Keys.ECC{} = msg.public_key
+      assert :ok =
+               ControlHandler.send_exchange_resp(
+                 realm,
+                 device_id,
+                 ExchangeResp.new(init_exchange)
+               )
     end
 
     test "returns {:error, :session_not_found} when the device has no active session",
@@ -1114,7 +1249,11 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
       end)
 
       assert {:error, :session_not_found} =
-               ControlHandler.send_exchange_resp(realm, device_id, init_exchange)
+               ControlHandler.send_exchange_resp(
+                 realm,
+                 device_id,
+                 ExchangeResp.new(init_exchange)
+               )
     end
 
     test "returns {:error, reason} on VMQ publish failure", context do
@@ -1123,7 +1262,11 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
       expect(VMQPlugin, :publish, fn _topic, _payload, _qos -> {:error, :transport_failure} end)
 
       assert {:error, :transport_failure} =
-               ControlHandler.send_exchange_resp(realm, device_id, init_exchange)
+               ControlHandler.send_exchange_resp(
+                 realm,
+                 device_id,
+                 ExchangeResp.new(init_exchange)
+               )
     end
   end
 

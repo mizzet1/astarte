@@ -764,12 +764,24 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Queries do
   end
 
   def save_shared_secret(realm, device_id, shared_secret) do
+    %Device{device_id: device_id}
+    |> Ecto.Changeset.change(%{shared_secret: shared_secret})
+    |> update_shared_secret(realm, device_id)
+  end
+
+  @doc """
+  Removes the device's shared secret, so that no component encrypts with it anymore.
+  """
+  def clear_shared_secret(realm, device_id) do
+    # `change/2` would see no change from the struct's default `nil`
+    %Device{device_id: device_id}
+    |> Ecto.Changeset.change()
+    |> Ecto.Changeset.force_change(:shared_secret, nil)
+    |> update_shared_secret(realm, device_id)
+  end
+
+  defp update_shared_secret(changeset, realm, device_id) do
     keyspace_name = Realm.keyspace_name(realm)
-
-    changeset =
-      %Device{device_id: device_id}
-      |> Ecto.Changeset.change(%{shared_secret: shared_secret})
-
     opts = [prefix: keyspace_name, consistency: Consistency.device_info(:write)]
 
     case Repo.safe_update(changeset, opts) do

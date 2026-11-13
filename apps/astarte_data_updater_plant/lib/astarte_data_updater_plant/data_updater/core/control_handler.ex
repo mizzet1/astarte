@@ -418,21 +418,25 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
     Core.Error.handle_error(context, error)
   end
 
+  # The new key is persisted before ExchangeResp is published: AppEngine reads
+  # it from the database for every encrypted publish, so it must be there as
+  # soon as the device can derive it.
   defp perform_key_agreement(new_state, init_exchange, payload) do
+    exchange_resp = ExchangeResp.new(init_exchange)
+
     with {:ok, state_after_receive} <-
            HandshakeState.transition(
              new_state.encrypted_endpoints_key,
              {:receive_init, init_exchange}
            ),
-         {:ok, exchange_resp} <-
-           send_exchange_resp(new_state.realm, new_state.device_id, init_exchange),
          {:ok, symmetric_key} <- SharedSecret.derive(init_exchange, exchange_resp),
          {:ok, established_key_state} <-
            HandshakeState.transition(
              state_after_receive,
              {:handshake_completed, symmetric_key.k}
            ),
-         :ok <- persist_shared_secret(new_state.realm, new_state.device_id, symmetric_key) do
+         :ok <- persist_shared_secret(new_state.realm, new_state.device_id, symmetric_key),
+         :ok <- publish_exchange_resp_or_restore(new_state, exchange_resp) do
       :telemetry.execute(
         [:astarte, :data_updater_plant, :device_key_agreement, :succeeded],
         %{},
@@ -580,6 +584,39 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
   defp process_key_agreement(state, _payload, _timestamp) do
     Logger.warning("[keyAgreement/1] Unexpected response received.")
     {:ack, :ok, state}
+  end
+
+  # A device that never receives ExchangeResp can't derive the new key, so the
+  # database goes back to the key the device still holds (or to none).
+  defp publish_exchange_resp_or_restore(state, exchange_resp) do
+    case send_exchange_resp(state.realm, state.device_id, exchange_resp) do
+      :ok ->
+        :ok
+
+      {:error, reason} ->
+        restore_shared_secret(state)
+        {:error, reason}
+    end
+  end
+
+  defp restore_shared_secret(state) do
+    result =
+      case state.shared_secret do
+        %Symmetric{} = previous_key ->
+          persist_shared_secret(state.realm, state.device_id, previous_key)
+
+        nil ->
+          Queries.clear_shared_secret(state.realm, state.device_id)
+      end
+
+    if result != :ok do
+      Logger.warning(
+        "[keyAgreement/0] Could not restore the previous shared secret after ExchangeResp could not be sent.",
+        tag: "shared_secret_restore_failed"
+      )
+    end
+
+    :ok
   end
 
   defp persist_shared_secret(realm, device_id, %Symmetric{} = symmetric_key) do
@@ -777,21 +814,12 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
   end
 
   @doc """
-  Publishes an `ExchangeResp` message from Astarte to a device in response to a
-  received `InitExchange` on:
+  Publishes the `ExchangeResp` Astarte built in response to a received
+  `InitExchange` on:
   `<realm>/<device_id>/control/keyAgreement/1`
   """
-  @spec send_exchange_resp(String.t(), binary(), InitExchange.t()) ::
-          {:ok, ExchangeResp.t()} | {:error, term()}
-  def send_exchange_resp(realm, device_id, %InitExchange{} = init_exchange) do
-    exchange_resp = ExchangeResp.new(init_exchange)
-
-    with :ok <- publish_exchange_resp(realm, device_id, exchange_resp) do
-      {:ok, exchange_resp}
-    end
-  end
-
-  defp publish_exchange_resp(realm, device_id, %ExchangeResp{} = exchange_resp) do
+  @spec send_exchange_resp(String.t(), binary(), ExchangeResp.t()) :: :ok | {:error, term()}
+  def send_exchange_resp(realm, device_id, %ExchangeResp{} = exchange_resp) do
     topic = "#{realm}/#{Device.encode_device_id(device_id)}/control/keyAgreement/1"
     payload = ExchangeResp.cbor_encode(exchange_resp)
 
