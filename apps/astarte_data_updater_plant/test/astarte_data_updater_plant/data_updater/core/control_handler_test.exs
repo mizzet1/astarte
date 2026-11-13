@@ -507,45 +507,123 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandlerTest do
                ControlHandler.handle_control(state, "/keyAgreement/0", <<1>>, 0)
     end
 
-    test "discards and asks a clean session when a handshake is already established",
-         context do
-      %{state: state, init_exchange_payload: payload} = context
+    test "rotates the key when a handshake is already established", context do
+      %{state: state, init_exchange: init_exchange, init_exchange_payload: payload} = context
+      old_secret = :crypto.strong_rand_bytes(32)
 
       state = %{
         state
-        | encrypted_endpoints_key: {:established, %{shared_secret: :crypto.strong_rand_bytes(32)}}
+        | encrypted_endpoints_key: HandshakeState.restore(old_secret),
+          shared_secret: %Symmetric{alg: :aes_256_gcm, k: old_secret}
       }
 
-      expect(Core.Device, :ask_clean_session, fn _state, _ts -> {:ok, state} end)
+      test_pid = self()
 
-      expect(Core.Trigger, :execute_device_error_triggers, fn _state,
-                                                              "key_agreement_transition_error",
-                                                              _meta,
-                                                              _ts ->
-        :ok
-      end)
-
-      expect(VMQPlugin, :publish, fn topic, payload_bytes, qos ->
+      expect(VMQPlugin, :publish, 1, fn topic, payload_bytes, 2 ->
         encoded_device_id = Astarte.Core.Device.encode_device_id(state.device_id)
-
-        assert topic == "#{state.realm}/#{encoded_device_id}/control/keyAgreement/4"
-        assert qos == 2
-
-        assert {:ok,
-                %ExchangeFailed{reason: :unprocessable_entity, error_msg: "invalid transition"}} =
-                 ExchangeFailed.cbor_decode(payload_bytes)
+        assert topic == "#{state.realm}/#{encoded_device_id}/control/keyAgreement/1"
+        send(test_pid, {:exchange_resp, payload_bytes})
 
         {:ok, %{local_matches: 1, remote_matches: 0}}
       end)
 
-      assert {{:discard, _result, new_state, {:continue, continue_arg}}, log} =
-               with_log(fn ->
-                 ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
-               end)
+      assert {:ack, :ok, new_state} =
+               ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
 
-      assert log =~ "State machine transition failed: :unprocessable_entity - invalid transition"
-      assert {:ok, _} = Impl.handle_continue(continue_arg, new_state)
+      assert {:established, %{shared_secret: new_secret}} = new_state.encrypted_endpoints_key
+      assert new_secret != old_secret
+      assert new_state.shared_secret == %Symmetric{alg: :aes_256_gcm, k: new_secret}
+
+      assert %{shared_secret: %Symmetric{k: ^new_secret}} =
+               Queries.get_device_status(state.realm, state.device_id)
+
+      # the device derives the same new key from the ExchangeResp it received
+      assert_received {:exchange_resp, exchange_resp_payload}
+      assert device_secret(init_exchange, exchange_resp_payload) == new_secret
     end
+  end
+
+  describe "key agreement after the device process reloads the key from the database" do
+    setup context do
+      %{state: state, init_exchange_payload: payload} = context
+
+      expect(VMQPlugin, :publish, fn _topic, _payload_bytes, 2 ->
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      {:ack, :ok, established_state} =
+        ControlHandler.handle_control(state, "/keyAgreement/0", payload, 0)
+
+      {:established, %{shared_secret: secret}} = established_state.encrypted_endpoints_key
+
+      # what Impl.init/1 does when the device process starts again
+      reloaded_state = Map.merge(state, Queries.get_device_status(state.realm, state.device_id))
+
+      %{reloaded_state: reloaded_state, reloaded_secret: secret}
+    end
+
+    test "SecretHash is confirmed with HashOk", context do
+      %{reloaded_state: state, reloaded_secret: secret} = context
+
+      assert {:established, %{shared_secret: ^secret}} = state.encrypted_endpoints_key
+
+      expect(VMQPlugin, :publish, 1, fn topic, payload_bytes, 2 ->
+        assert String.ends_with?(topic, "/control/keyAgreement/3")
+        assert {:ok, %HashOk{seq_num: 7}} = HashOk.cbor_decode(payload_bytes)
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      payload = 7 |> SecretHash.new(secret) |> SecretHash.cbor_encode()
+
+      assert {:ack, :ok, new_state} =
+               ControlHandler.handle_control(state, "/keyAgreement/2", payload, 0)
+
+      assert {:established, %{shared_secret: ^secret}} = new_state.encrypted_endpoints_key
+    end
+
+    test "InitExchange rotates the key", context do
+      %{reloaded_state: state, reloaded_secret: old_secret} = context
+
+      init_exchange = InitExchange.new(1)
+      test_pid = self()
+
+      expect(VMQPlugin, :publish, 1, fn topic, payload_bytes, 2 ->
+        assert String.ends_with?(topic, "/control/keyAgreement/1")
+        send(test_pid, {:exchange_resp, payload_bytes})
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      assert {:ack, :ok, new_state} =
+               ControlHandler.handle_control(
+                 state,
+                 "/keyAgreement/0",
+                 InitExchange.cbor_encode(init_exchange),
+                 0
+               )
+
+      assert {:established, %{shared_secret: new_secret}} = new_state.encrypted_endpoints_key
+      assert new_secret != old_secret
+
+      assert_received {:exchange_resp, exchange_resp_payload}
+      assert device_secret(init_exchange, exchange_resp_payload) == new_secret
+    end
+  end
+
+  # Derives the shared key the way the device does: with its own private key
+  # (kept in the InitExchange it sent) and Astarte's public key from ExchangeResp.
+  defp device_secret(%InitExchange{} = init_exchange, exchange_resp_payload) do
+    {:ok, exchange_resp} =
+      ExchangeResp.cbor_decode(exchange_resp_payload, init_exchange.key_type)
+
+    {:ok, %Symmetric{k: secret}} =
+      SharedSecret.derive(
+        %{init_exchange | public_key: exchange_resp.public_key},
+        %{exchange_resp | public_key: init_exchange.public_key}
+      )
+
+    secret
   end
 
   describe "/keyAgreement/0 - invalid payloads" do

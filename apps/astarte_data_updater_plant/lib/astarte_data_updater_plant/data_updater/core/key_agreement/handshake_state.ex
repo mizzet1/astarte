@@ -31,13 +31,16 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState 
 
   ## Valid transitions
 
-  | Current state                                     | Event                             | Next state           |
-  |---------------------------------------------------|-----------------------------------|----------------------|
-  | any                                               | `:reset`                          | `:uninitialized`     |
-  | any                                               | `{:initiate_handshake, msg}`      | `:handshake_started` |
-  | `:uninitialized`, `:handshake_started`, `:failed` | `{:receive_init, msg}`            | `:handshake_started` |
-  | `:handshake_started`                              | `{:handshake_completed, secret}`  | `:established`       |
-  | `:established`                                    | `:secret_reconfirmed`             | `:established`       |
+  | Current state        | Event                            | Next state           |
+  |----------------------|----------------------------------|----------------------|
+  | any                  | `:reset`                         | `:uninitialized`     |
+  | any                  | `{:initiate_handshake, msg}`     | `:handshake_started` |
+  | any                  | `{:receive_init, msg}`           | `:handshake_started` |
+  | `:handshake_started` | `{:handshake_completed, secret}` | `:established`       |
+  | `:established`       | `:secret_reconfirmed`            | `:established`       |
+
+  A `{:receive_init, msg}` from `:established` is a key rotation: the old key
+  stays in use until the new handshake completes.
   """
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeFailed
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange
@@ -88,16 +91,10 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState 
     {:ok, {:handshake_started, %{key_type: msg.key_type, init_exchange: msg}}}
   end
 
-  # Receiving a handshake initiation (Device to Astarte).
-  def transition(:uninitialized, {:receive_init, %InitExchange{} = msg}) do
-    {:ok, {:handshake_started, %{key_type: msg.key_type, init_exchange: msg}}}
-  end
-
-  def transition({:handshake_started, _}, {:receive_init, %InitExchange{} = msg}) do
-    {:ok, {:handshake_started, %{key_type: msg.key_type, init_exchange: msg}}}
-  end
-
-  def transition({:failed, _}, {:receive_init, %InitExchange{} = msg}) do
+  # Receiving a handshake initiation (Device to Astarte). Valid from any state:
+  # from `:established` it is a key rotation. The caller keeps the established
+  # state, and its key, until the new handshake completes.
+  def transition(_current_state, {:receive_init, %InitExchange{} = msg}) do
     {:ok, {:handshake_started, %{key_type: msg.key_type, init_exchange: msg}}}
   end
 
