@@ -148,9 +148,10 @@ and `ExchangeResp` is published by Astarte in response.
 
 1. The device generates a fresh ephemeral key pair for the chosen suite, a random 32-byte HKDF
    salt, and publishes `InitExchange`.
-2. Astarte generates its own fresh ephemeral key pair for the same suite, publishes
-   `ExchangeResp`, then derives the shared secret via ECDH (using its private key and the
-   device's public key) and HKDF (using the salt from `InitExchange`).
+2. Astarte generates its own fresh ephemeral key pair for the same suite, derives the shared
+   secret via ECDH (using its private key and the device's public key) and HKDF (using the salt
+   from `InitExchange`), stores it, and only then publishes `ExchangeResp`. If the key can't be
+   stored, Astarte replies with `ExchangeFailed` (code `0`) instead of `ExchangeResp`.
 3. The device derives the same shared secret independently, using its own private key,
    Astarte's public key from `ExchangeResp`, and the same salt.
 4. Both sides now hold the same 256-bit AES key, scoped to the current MQTT session.
@@ -236,9 +237,18 @@ since only the device publishes `InitExchange`.
 
 > #### Implementation note {: .note}
 >
-> In the reference Astarte implementation, an established session moves back to
-> `handshake_started` only in response to an explicit handshake re-initiation, while `SecretHash` / `HashOk` is the mechanism for reconfirming an
+> In the reference Astarte implementation, an `InitExchange` received in `established` starts a
+> key rotation. Astarte keeps using the current key until the new one is derived and stored, and
+> keeps it if the rotation fails. `SecretHash` / `HashOk` is the mechanism for reconfirming an
 > already-established key without a full re-handshake.
+
+### Failures
+
+A key-agreement failure never ends the device's MQTT session: Astarte doesn't disconnect the
+device, and its subscriptions and queued messages are kept. Astarte replies with `ExchangeFailed`
+to a failed handshake step and to a malformed `InitExchange`, `SecretHash` or `HashOk`. A malformed
+`ExchangeFailed` from the device is discarded without a reply. If Astarte can't deliver
+`ExchangeResp`, it keeps the key the device already had.
 
 ### Key scoping and rotation
 
@@ -262,6 +272,12 @@ Once a shared key is established for the current session:
 Note on payload encryption: For every payload to be sent, the payload gets fully encrypted as a single ciphertext if at least one endpoint in the mapping is declared as encrypted. This means Astarte and devices always encrypt and decrypt the payload as a whole (such as an entire BSON document), rather than handling individual fields separately.
 
 If no key has ever been established for the current session, Astarte cannot decrypt an incoming
-payload on an encrypted endpoint. This is treated as a recoverable condition: Astarte logs the issue and discards the message rather than crashing or falling back to treating the
-payload as plaintext. The same applies if a payload is received encrypted with a stale key after a
-session reset.
+payload on an encrypted endpoint. This is treated as a recoverable condition: Astarte logs the
+issue, discards the message, and publishes `ExchangeFailed` (code `3`, `seq_num` `0`) to ask the
+device for a new handshake. It doesn't crash, doesn't fall back to treating the payload as
+plaintext, and doesn't disconnect the device. The same applies if a payload is received encrypted
+with a stale key after a session reset.
+
+When Astarte resends server-owned properties after an [empty cache](080-mqtt-v1-protocol.html#empty-cache),
+values on encrypted mappings are encrypted with the shared key, like any other server-owned
+publish. If no key is established, Astarte doesn't resend those properties.
