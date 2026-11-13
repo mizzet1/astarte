@@ -26,6 +26,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DeviceTest do
   use Astarte.DataUpdaterPlant.Cases.DataUpdater
 
   import Ecto.Query
+  import ExUnit.CaptureLog
 
   import Astarte.Core.Generators.Device
 
@@ -33,16 +34,22 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DeviceTest do
 
   alias Astarte.Core.Device
 
+  alias Astarte.Core.Mapping
   alias Astarte.Core.Mapping.EndpointsAutomaton
   alias Astarte.Core.Mapping.ValueType
 
   alias Astarte.DataAccess.Device, as: DatabaseDevice
+  alias Astarte.DataAccess.Device.InsertContext
   alias Astarte.DataAccess.Interface, as: InterfaceQueries
   alias Astarte.DataAccess.Realms.Realm
   alias Astarte.DataAccess.Repo
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState
   alias Astarte.DataUpdaterPlant.DataUpdater.Queries
   alias Astarte.DataUpdaterPlant.RPC.VMQPlugin
+  alias Astarte.Secrets
+  alias Astarte.Secrets.EncryptedMessages
+  alias COSE.Keys.Symmetric
 
   alias Astarte.DataUpdaterPlant.Helpers.Database
 
@@ -282,6 +289,102 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DeviceTest do
 
       assert {:error, :sending_properties_to_interface_failed} ==
                Core.Device.resend_all_properties(state)
+    end
+  end
+
+  describe "resend_all_properties/1 with an encrypted server-owned property" do
+    setup context do
+      %{
+        state: state,
+        realm_name: realm_name,
+        interface_descriptors: interface_descriptors,
+        server_property_with_all_endpoint_types: properties_interface
+      } = context
+
+      properties_descriptor =
+        Enum.find(interface_descriptors, &(&1.interface_id == properties_interface.interface_id))
+
+      interface_id = Ecto.UUID.bingenerate()
+
+      descriptor = %{
+        properties_descriptor
+        | name: "test.EncryptedServerProperties#{System.unique_integer([:positive])}",
+          major_version: 0,
+          interface_id: interface_id
+      }
+
+      mapping = %Mapping{
+        endpoint: "/secret",
+        endpoint_id: Ecto.UUID.bingenerate(),
+        interface_id: interface_id,
+        value_type: :string,
+        encrypted: true
+      }
+
+      # stored the way AppEngine stores it: encrypted at rest with the realm DEK
+      {:ok, {stored_value, encrypted_dek}} =
+        Secrets.maybe_encrypt_value(descriptor, mapping, "top secret", [mapping], realm_name)
+
+      :ok =
+        DatabaseDevice.insert_value_into_db(%InsertContext{
+          realm: realm_name,
+          device_id: state.device_id,
+          interface_descriptor: descriptor,
+          mapping: mapping,
+          path: "/secret",
+          value: stored_value,
+          value_timestamp: div(@timestamp_us_x_10, 10_000),
+          reception_timestamp: @timestamp_us_x_10,
+          encrypted_dek: encrypted_dek
+        })
+
+      shared_secret = %Symmetric{k: :crypto.strong_rand_bytes(32), alg: :aes_256_gcm}
+
+      state = %{
+        state
+        | introspection: %{descriptor.name => descriptor.major_version},
+          interfaces: Map.put(state.interfaces, descriptor.name, descriptor),
+          mappings: Map.put(state.mappings, mapping.endpoint_id, mapping),
+          encrypted_endpoints_key: HandshakeState.restore(shared_secret.k),
+          shared_secret: shared_secret
+      }
+
+      %{state: state, descriptor: descriptor}
+    end
+
+    test "sends it encrypted with the device shared key", context do
+      %{state: state, realm_name: realm_name, descriptor: descriptor} = context
+      encoded_device_id = Device.encode_device_id(state.device_id)
+
+      Mimic.expect(VMQPlugin, :publish, 1, fn topic, payload, 2 ->
+        assert topic == "#{realm_name}/#{encoded_device_id}/#{descriptor.name}/secret"
+
+        assert {:ok, bson} = EncryptedMessages.decrypt(payload, state.shared_secret)
+        assert %{"v" => "top secret"} = Cyanide.decode!(bson)
+
+        {:ok, %{local_matches: 1, remote_matches: 0}}
+      end)
+
+      assert {:ok, _state} = Core.Device.resend_all_properties(state)
+    end
+
+    test "doesn't send it without an established shared key", context do
+      %{state: state, descriptor: descriptor} = context
+
+      Mimic.reject(VMQPlugin, :publish, 3)
+
+      for key_state <- [:uninitialized, {:failed, :invalid_argument}] do
+        state = %{state | encrypted_endpoints_key: key_state}
+
+        log =
+          capture_log(fn ->
+            assert {:ok, _state} = Core.Device.resend_all_properties(state)
+          end)
+
+        assert log =~ "Not resending the encrypted properties of #{descriptor.name}/secret"
+        refute log =~ "top secret"
+        refute log =~ inspect(state.shared_secret.k)
+      end
     end
   end
 
