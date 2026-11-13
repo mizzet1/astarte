@@ -29,12 +29,15 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
   use ExUnitProperties
   use Mimic
 
+  alias Astarte.Core.Device
   alias Astarte.Core.Mapping.ValueType
   alias Astarte.DataUpdaterPlant.DataUpdater.Core
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler
+  alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.ExchangeFailed
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeState
   alias Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.InitExchange
   alias Astarte.DataUpdaterPlant.DataUpdater.PayloadsDecoder
+  alias Astarte.DataUpdaterPlant.RPC.VMQPlugin
   alias Astarte.Secrets.EncryptedMessages
   alias COSE.Keys.Symmetric
 
@@ -539,10 +542,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
       # key appears as not established yet
       state_without_established_key = %{state | encrypted_endpoints_key: :uninitialized}
 
-      Astarte.DataUpdaterPlant.RPC.VMQPlugin.ClientMock
-      |> expect(:disconnect, fn %{client_id: _client_id, discard_state: _discard_state} ->
-        :ok
-      end)
+      expect_new_handshake_request(state, "no shared secret established")
 
       assert {:discard, :key_agreement_error, _, _} =
                DataHandler.handle_data(
@@ -578,10 +578,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
       ]
 
       for key_state <- key_states do
-        Astarte.DataUpdaterPlant.RPC.VMQPlugin.ClientMock
-        |> expect(:disconnect, fn %{client_id: _client_id, discard_state: _discard_state} ->
-          :ok
-        end)
+        expect_new_handshake_request(state, "no shared secret established")
 
         # `shared_secret` still holds a key, as it does after a failed rotation
         state = %{state | encrypted_endpoints_key: key_state}
@@ -640,10 +637,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
         | shared_secret: %Symmetric{k: :crypto.strong_rand_bytes(32), alg: :aes_256_gcm}
       }
 
-      Astarte.DataUpdaterPlant.RPC.VMQPlugin.ClientMock
-      |> expect(:disconnect, fn %{client_id: _client_id, discard_state: _discard_state} ->
-        :ok
-      end)
+      expect_new_handshake_request(state, "payload decryption failed")
 
       assert {:discard, :decryption_error, _, _} =
                DataHandler.handle_data(
@@ -661,6 +655,21 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandlerErrorTest do
   end
 
   defp discard_error(context, error), do: {:discard, error.error, context.state}
+
+  # The device is asked for a new handshake, and its MQTT session is left alone
+  defp expect_new_handshake_request(state, error_msg) do
+    reject(Core.Device, :ask_clean_session, 2)
+
+    expect(VMQPlugin, :publish, fn topic, payload, 2 ->
+      encoded_device_id = Device.encode_device_id(state.device_id)
+      assert topic == "#{state.realm}/#{encoded_device_id}/control/keyAgreement/4"
+
+      assert {:ok, %ExchangeFailed{reason: :unprocessable_entity, error_msg: ^error_msg}} =
+               ExchangeFailed.cbor_decode(payload)
+
+      {:ok, %{local_matches: 1, remote_matches: 0}}
+    end)
+  end
 
   defp gen_non_empty_value_context(state, interfaces) do
     gen all interface <- member_of(interfaces),

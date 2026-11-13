@@ -445,8 +445,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
           %{realm: context.state.realm, reason: :key_agreement_error}
         )
 
-        # TODO consider whether to make it a soft error, and do not disconnect the device
-        Core.Error.handle_error(context, error, ask_clean_session: true)
+        handle_key_error(context, error, "no shared secret established")
     end
   end
 
@@ -470,9 +469,26 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
           %{realm: context.state.realm, reason: :decryption_error}
         )
 
-        # TODO consider whether to make it a soft error, and do not disconnect the device
-        Core.Error.handle_error(context, error, ask_clean_session: true)
+        handle_key_error(context, error, "payload decryption failed")
     end
+  end
+
+  # A key problem is not a session problem: wiping the MQTT session would also
+  # drop the device's subscriptions and offline queue. Drop the message and ask
+  # the device for a new handshake with an ExchangeFailed, as doc 082 describes.
+  defp handle_key_error(context, error, exchange_failed_message) do
+    %{state: state} = context
+
+    _ =
+      Core.ControlHandler.send_exchange_failed(
+        state.realm,
+        state.device_id,
+        0,
+        :unprocessable_entity,
+        exchange_failed_message
+      )
+
+    Core.Error.handle_error(context, error, ask_clean_session: false)
   end
 
   # if the retrieved value from db is in encrypted form decrypt it, otherwise return it as-is;

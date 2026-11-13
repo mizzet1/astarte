@@ -750,7 +750,22 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
     end
   end
 
-  defp send_exchange_failed(realm, device_id, seq_num, reason, error_msg) do
+  @doc """
+  Publishes an `ExchangeFailed` message to a device on:
+  `<realm>/<device_id>/control/keyAgreement/4`
+
+  Besides replying to a failed handshake step, Astarte sends it to ask the device
+  for a new handshake, for example when an encrypted payload can't be decrypted.
+  """
+  @spec send_exchange_failed(
+          String.t(),
+          binary(),
+          non_neg_integer(),
+          ExchangeFailed.reason(),
+          String.t()
+        ) ::
+          :ok | {:error, term()}
+  def send_exchange_failed(realm, device_id, seq_num, reason, error_msg) do
     :telemetry.execute(
       [:astarte, :data_updater_plant, :device_key_agreement, :failed],
       %{},
