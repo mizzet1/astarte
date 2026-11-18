@@ -242,6 +242,14 @@ since only the device publishes `InitExchange`.
 > keeps it if the rotation fails. `SecretHash` / `HashOk` is the mechanism for reconfirming an
 > already-established key without a full re-handshake.
 
+### Failures
+
+A key-agreement failure never ends the device's MQTT session: Astarte doesn't disconnect the
+device, and its subscriptions and queued messages are kept. Astarte replies with `ExchangeFailed`
+to a failed handshake step and to a malformed `InitExchange`, `SecretHash` or `HashOk`. A malformed
+`ExchangeFailed` from the device is discarded without a reply. If Astarte can't deliver
+`ExchangeResp`, it keeps the key the device already had.
+
 ### Key scoping and rotation
 
 The derived key is only ever valid for the MQTT session in which it was established. If the session
@@ -264,6 +272,8 @@ Once a shared key is established for the current session:
 Note on payload encryption: For every payload to be sent, the payload gets fully encrypted as a single ciphertext if at least one endpoint in the mapping is declared as encrypted. This means Astarte and devices always encrypt and decrypt the payload as a whole (such as an entire BSON document), rather than handling individual fields separately.
 
 If no key has ever been established for the current session, Astarte cannot decrypt an incoming
-payload on an encrypted endpoint. This is treated as a recoverable condition: Astarte logs the issue and discards the message rather than crashing or falling back to treating the
-payload as plaintext. The same applies if a payload is received encrypted with a stale key after a
-session reset.
+payload on an encrypted endpoint. This is treated as a recoverable condition: Astarte logs the
+issue, discards the message, and publishes `ExchangeFailed` (code `3`, `seq_num` `0`) to ask the
+device for a new handshake. It doesn't crash, doesn't fall back to treating the payload as
+plaintext, and doesn't disconnect the device. The same applies if a payload is received encrypted
+with a stale key after a session reset.

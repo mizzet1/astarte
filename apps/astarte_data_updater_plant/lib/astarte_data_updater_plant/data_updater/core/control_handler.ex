@@ -41,6 +41,8 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
 
   require Logger
 
+  @key_agreement_error_opts [ask_clean_session: false]
+
   @doc """
   Handles control messages published by the device on various control topics.
 
@@ -191,7 +193,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
             )
 
             _ =
-              send_exchange_failed(
+              Core.KeyAgreement.send_exchange_failed(
                 new_state.realm,
                 new_state.device_id,
                 init_exchange.seq_num,
@@ -214,7 +216,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
               error: :key_agreement_transition_error
             }
 
-            Core.Error.handle_error(context, error)
+            Core.Error.handle_error(context, error, @key_agreement_error_opts)
 
           {:error, reason} ->
             Logger.error("[keyAgreement/0] Failed to send ExchangeResp: #{inspect(reason)}")
@@ -233,7 +235,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
               error: :key_agreement_transition_error
             }
 
-            Core.Error.handle_error(context, error)
+            Core.Error.handle_error(context, error, @key_agreement_error_opts)
         end
 
       {:error, reason, message} ->
@@ -242,7 +244,14 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           tag: "key_agreement_invalid_payload"
         )
 
-        _ = send_exchange_failed(new_state.realm, new_state.device_id, 0, reason, message)
+        _ =
+          Core.KeyAgreement.send_exchange_failed(
+            new_state.realm,
+            new_state.device_id,
+            0,
+            reason,
+            message
+          )
 
         context = %{
           state: new_state,
@@ -260,7 +269,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           error: :key_agreement_error
         }
 
-        Core.Error.handle_error(context, error)
+        Core.Error.handle_error(context, error, @key_agreement_error_opts)
     end
   end
 
@@ -289,6 +298,15 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           tag: "secret_hash_invalid_payload"
         )
 
+        _ =
+          Core.KeyAgreement.send_exchange_failed(
+            new_state.realm,
+            new_state.device_id,
+            0,
+            :invalid_argument,
+            "invalid SecretHash payload"
+          )
+
         context = %{
           state: new_state,
           payload: payload,
@@ -303,7 +321,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           error: :secret_hash_error
         }
 
-        Core.Error.handle_error(context, error)
+        Core.Error.handle_error(context, error, @key_agreement_error_opts)
     end
   end
 
@@ -338,7 +356,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
             )
 
             _ =
-              send_exchange_failed(
+              Core.KeyAgreement.send_exchange_failed(
                 new_state.realm,
                 new_state.device_id,
                 seq_num,
@@ -361,7 +379,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
               error: :key_agreement_transition_error
             }
 
-            Core.Error.handle_error(context, error)
+            Core.Error.handle_error(context, error, @key_agreement_error_opts)
         end
 
       {:error, reason, message} ->
@@ -370,7 +388,14 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           tag: "hash_ok_invalid_payload"
         )
 
-        _ = send_exchange_failed(new_state.realm, new_state.device_id, 0, reason, message)
+        _ =
+          Core.KeyAgreement.send_exchange_failed(
+            new_state.realm,
+            new_state.device_id,
+            0,
+            reason,
+            message
+          )
 
         context = %{
           state: new_state,
@@ -386,7 +411,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
           error: :hash_ok_error
         }
 
-        Core.Error.handle_error(context, error)
+        Core.Error.handle_error(context, error, @key_agreement_error_opts)
     end
   end
 
@@ -479,7 +504,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
         Logger.warning("[keyAgreement/2] SecretHash mismatch.")
 
         _ =
-          send_exchange_failed(
+          Core.KeyAgreement.send_exchange_failed(
             state.realm,
             state.device_id,
             seq_num,
@@ -493,7 +518,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
         Logger.error("[keyAgreement/2] Failed to process SecretHash: #{inspect(reason)}")
 
         _ =
-          send_exchange_failed(
+          Core.KeyAgreement.send_exchange_failed(
             state.realm,
             state.device_id,
             seq_num,
@@ -509,7 +534,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
     Logger.warning("[keyAgreement/2] No shared secret established.")
 
     _ =
-      send_exchange_failed(
+      Core.KeyAgreement.send_exchange_failed(
         state.realm,
         state.device_id,
         seq_num,
@@ -564,7 +589,8 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
       {:error, reason, message} ->
         Logger.warning("[keyAgreement/1] Processing failed: #{inspect(reason)} - #{message}")
 
-        _ = send_exchange_failed(state.realm, state.device_id, 0, reason, message)
+        _ =
+          Core.KeyAgreement.send_exchange_failed(state.realm, state.device_id, 0, reason, message)
 
         final_state = %{
           state
@@ -696,7 +722,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
       error: :exchange_failed_error
     }
 
-    Core.Error.handle_error(context, error)
+    Core.Error.handle_error(context, error, @key_agreement_error_opts)
   end
 
   defp send_hash_ok(realm, device_id, seq_num) do
@@ -742,69 +768,6 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.ControlHandler do
         )
 
         {:error, reason}
-    end
-  end
-
-  defp send_exchange_failed(realm, device_id, seq_num, reason, error_msg) do
-    :telemetry.execute(
-      [:astarte, :data_updater_plant, :device_key_agreement, :failed],
-      %{},
-      %{realm: realm, reason: reason}
-    )
-
-    topic = "#{realm}/#{Device.encode_device_id(device_id)}/control/keyAgreement/4"
-
-    {:ok, exchange_failed} = ExchangeFailed.new(seq_num, reason, error_msg)
-    payload = ExchangeFailed.cbor_encode(exchange_failed)
-
-    publish_start = System.monotonic_time()
-
-    case VMQPlugin.publish(topic, payload, 2) do
-      {:ok, %{local_matches: local, remote_matches: remote}} when local + remote >= 1 ->
-        :telemetry.execute(
-          [:astarte, :data_updater_plant, :control_handler, :key_agreement_exchange_failed_send],
-          %{
-            duration: System.monotonic_time() - publish_start,
-            payload_size: byte_size(payload)
-          },
-          %{realm: realm, result: "success", reason: reason}
-        )
-
-        :ok
-
-      {:ok, %{local_matches: 0, remote_matches: 0}} ->
-        :telemetry.execute(
-          [:astarte, :data_updater_plant, :control_handler, :key_agreement_exchange_failed_send],
-          %{
-            duration: System.monotonic_time() - publish_start,
-            payload_size: byte_size(payload)
-          },
-          %{realm: realm, result: "no_matches", reason: reason}
-        )
-
-        Logger.warning(
-          "[keyAgreement/4] Could not deliver ExchangeFailed (#{inspect(reason)}): device session not found",
-          tag: "exchange_failed_no_session"
-        )
-
-        {:error, :session_not_found}
-
-      {:error, publish_reason} ->
-        :telemetry.execute(
-          [:astarte, :data_updater_plant, :control_handler, :key_agreement_exchange_failed_send],
-          %{
-            duration: System.monotonic_time() - publish_start,
-            payload_size: byte_size(payload)
-          },
-          %{realm: realm, result: "error", reason: reason}
-        )
-
-        Logger.warning(
-          "[keyAgreement/4] Could not deliver ExchangeFailed (#{inspect(reason)}): #{inspect(publish_reason)}",
-          tag: "exchange_failed_publish_error"
-        )
-
-        {:error, publish_reason}
     end
   end
 

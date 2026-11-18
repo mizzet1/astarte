@@ -446,8 +446,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
           %{realm: context.state.realm, reason: :key_agreement_error}
         )
 
-        # TODO consider whether to make it a soft error, and do not disconnect the device
-        Core.Error.handle_error(context, error, ask_clean_session: true)
+        handle_key_error(context, error, "no shared secret established")
     end
   end
 
@@ -471,9 +470,23 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.DataHandler do
           %{realm: context.state.realm, reason: :decryption_error}
         )
 
-        # TODO consider whether to make it a soft error, and do not disconnect the device
-        Core.Error.handle_error(context, error, ask_clean_session: true)
+        handle_key_error(context, error, "payload decryption failed")
     end
+  end
+
+  defp handle_key_error(context, error, exchange_failed_message) do
+    %{state: state} = context
+
+    _ =
+      Core.KeyAgreement.send_exchange_failed(
+        state.realm,
+        state.device_id,
+        0,
+        :unprocessable_entity,
+        exchange_failed_message
+      )
+
+    Core.Error.handle_error(context, error, ask_clean_session: false)
   end
 
   # if the retrieved value from db is in encrypted form decrypt it, otherwise return it as-is;
