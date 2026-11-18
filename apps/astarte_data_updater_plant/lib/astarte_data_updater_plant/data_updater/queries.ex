@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2018 - 2025 SECO Mind Srl
+# Copyright 2018 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -764,26 +764,45 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Queries do
   end
 
   def save_shared_secret(realm, device_id, shared_secret) do
-    keyspace_name = Realm.keyspace_name(realm)
-
     changeset =
       %Device{device_id: device_id}
       |> Ecto.Changeset.change(%{shared_secret: shared_secret})
 
+    with {:error, reason} <- update_shared_secret(changeset, realm) do
+      Logger.warning(
+        "Cannot save shared secret for device #{CoreDevice.encode_device_id(device_id)}: #{inspect(reason)}",
+        realm: realm,
+        tag: "save_shared_secret_fail"
+      )
+
+      {:error, reason}
+    end
+  end
+
+  @doc """
+  Removes the device's shared secret, so that no component encrypts with it anymore.
+  """
+  def clear_shared_secret(realm, device_id) do
+    changeset =
+      %Device{device_id: device_id}
+      |> Ecto.Changeset.change()
+      |> Ecto.Changeset.force_change(:shared_secret, nil)
+
+    with {:error, reason} <- update_shared_secret(changeset, realm) do
+      Logger.warning(
+        "Cannot clear shared secret for device #{CoreDevice.encode_device_id(device_id)}: #{inspect(reason)}",
+        realm: realm,
+        tag: "clear_shared_secret_fail"
+      )
+
+      {:error, reason}
+    end
+  end
+
+  defp update_shared_secret(changeset, realm) do
+    keyspace_name = Realm.keyspace_name(realm)
     opts = [prefix: keyspace_name, consistency: Consistency.device_info(:write)]
 
-    case Repo.safe_update(changeset, opts) do
-      {:ok, _device} ->
-        :ok
-
-      {:error, reason} ->
-        Logger.warning(
-          "Cannot save shared secret for device #{CoreDevice.encode_device_id(device_id)}: #{inspect(reason)}",
-          realm: realm,
-          tag: "save_shared_secret_fail"
-        )
-
-        {:error, reason}
-    end
+    with {:ok, _device} <- Repo.safe_update(changeset, opts), do: :ok
   end
 end

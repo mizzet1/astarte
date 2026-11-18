@@ -148,9 +148,10 @@ and `ExchangeResp` is published by Astarte in response.
 
 1. The device generates a fresh ephemeral key pair for the chosen suite, a random 32-byte HKDF
    salt, and publishes `InitExchange`.
-2. Astarte generates its own fresh ephemeral key pair for the same suite, publishes
-   `ExchangeResp`, then derives the shared secret via ECDH (using its private key and the
-   device's public key) and HKDF (using the salt from `InitExchange`).
+2. Astarte generates its own fresh ephemeral key pair for the same suite, derives the shared
+   secret via ECDH (using its private key and the device's public key) and HKDF (using the salt
+   from `InitExchange`), stores it, and only then publishes `ExchangeResp`. If the key can't be
+   stored, Astarte replies with `ExchangeFailed` (code `0`) instead of `ExchangeResp`.
 3. The device derives the same shared secret independently, using its own private key,
    Astarte's public key from `ExchangeResp`, and the same salt.
 4. Both sides now hold the same 256-bit AES key, scoped to the current MQTT session.
