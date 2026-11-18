@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2018 - 2025 SECO Mind Srl
+# Copyright 2018 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -562,6 +562,28 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Queries do
 
     from(storage)
     |> select(^[:path, column_name])
+    |> where(device_id: ^device_id, interface_id: ^interface_id, endpoint_id: ^endpoint_id)
+    |> put_query_prefix(keyspace_name)
+    |> Repo.all(consistency: Consistency.device_info(:read))
+  end
+
+  @doc """
+  Like `retrieve_property_values/4`, for a mapping with an encrypted endpoint:
+  its values are stored encrypted at rest in `encryptedblob_value`, next to the
+  `encrypted_dek` they were encrypted with, and the value-type column is empty.
+  """
+  def retrieve_encrypted_property_values(realm, device_id, interface_descriptor, mapping) do
+    %InterfaceDescriptor{
+      storage_type: :multi_interface_individual_properties_dbtable,
+      interface_id: interface_id,
+      storage: storage
+    } = interface_descriptor
+
+    %Mapping{endpoint_id: endpoint_id, encrypted: true} = mapping
+    keyspace_name = Realm.keyspace_name(realm)
+
+    from(storage)
+    |> select(^[:path, :encryptedblob_value, :encrypted_dek])
     |> where(device_id: ^device_id, interface_id: ^interface_id, endpoint_id: ^endpoint_id)
     |> put_query_prefix(keyspace_name)
     |> Repo.all(consistency: Consistency.device_info(:read))

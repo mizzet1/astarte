@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2025 SECO Mind Srl
+# Copyright 2025 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -39,6 +39,8 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Device do
   alias Astarte.DataUpdaterPlant.RPC.VMQPlugin
   alias Astarte.DataUpdaterPlant.TimeBasedActions
   alias Astarte.DataUpdaterPlant.TriggersHandler
+  alias Astarte.Secrets
+  alias Astarte.Secrets.EncryptedMessages
 
   require Logger
 
@@ -453,7 +455,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Device do
   end
 
   defp resend_all_interface_properties(
-         %State{realm: realm, device_id: device_id, mappings: mappings} = _state,
+         %State{device_id: device_id, mappings: mappings} = state,
          %InterfaceDescriptor{type: :properties, ownership: :server} = interface_descriptor
        ) do
     encoded_device_id = Device.encode_device_id(device_id)
@@ -464,8 +466,7 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Device do
     end)
     |> Enum.reduce_while(:ok, fn {_endpoint_id, mapping}, :ok ->
       case resend_interface_mapping_properties(
-             realm,
-             device_id,
+             state,
              encoded_device_id,
              interface_descriptor,
              mapping
@@ -488,8 +489,35 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Device do
   end
 
   defp resend_interface_mapping_properties(
-         realm,
-         device_id,
+         state,
+         encoded_device_id,
+         interface_descriptor,
+         %Mapping{encrypted: true} = mapping
+       ) do
+    case state.encrypted_endpoints_key do
+      {:established, _data} ->
+        state.realm
+        |> Queries.retrieve_encrypted_property_values(
+          state.device_id,
+          interface_descriptor,
+          mapping
+        )
+        |> Enum.reduce_while(:ok, fn row, :ok ->
+          resend_encrypted_property(state, encoded_device_id, interface_descriptor, mapping, row)
+        end)
+
+      key_state ->
+        Logger.warning(
+          "Not resending the encrypted properties of #{interface_descriptor.name}#{mapping.endpoint}: device shared key not established. Current key agreement status: #{inspect(HandshakeState.state_name(key_state))}.",
+          tag: "encrypted_properties_not_resent"
+        )
+
+        :ok
+    end
+  end
+
+  defp resend_interface_mapping_properties(
+         state,
          encoded_device_id,
          interface_descriptor,
          %Mapping{value_type: value_type} = mapping
@@ -497,28 +525,69 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Device do
     column_name =
       CQLUtils.type_to_db_column_name(value_type) |> String.to_existing_atom()
 
-    Queries.retrieve_property_values(realm, device_id, interface_descriptor, mapping)
+    Queries.retrieve_property_values(state.realm, state.device_id, interface_descriptor, mapping)
     |> Enum.reduce_while(:ok, fn %{:path => path, ^column_name => value}, _acc ->
+      encapsulated_value = %{v: cast_bson_value(value_type, value)}
+
       handle_property_send(
-        realm,
+        state.realm,
         encoded_device_id,
         interface_descriptor.name,
         path,
-        value_type,
-        value
+        Cyanide.encode!(encapsulated_value),
+        inspect(encapsulated_value)
       )
     end)
   end
 
-  defp handle_property_send(realm, encoded_device_id, interface_name, path, value_type, value) do
-    case send_value(
-           realm,
-           encoded_device_id,
-           interface_name,
-           path,
-           value_type,
-           value
-         ) do
+  defp resend_encrypted_property(state, encoded_device_id, interface_descriptor, mapping, row) do
+    %{path: path, encryptedblob_value: stored_value, encrypted_dek: encrypted_dek} = row
+
+    case decrypt_stored_value(state.realm, stored_value, encrypted_dek) do
+      {:ok, value} ->
+        payload =
+          %{v: cast_bson_value(mapping.value_type, value)}
+          |> Cyanide.encode!()
+          |> EncryptedMessages.encrypt(state.shared_secret)
+
+        handle_property_send(
+          state.realm,
+          encoded_device_id,
+          interface_descriptor.name,
+          path,
+          payload,
+          "[redacted]"
+        )
+
+      :error ->
+        Logger.warning(
+          "Not resending the encrypted property #{interface_descriptor.name}#{path}: its stored value can't be decrypted.",
+          tag: "encrypted_property_not_resent"
+        )
+
+        {:cont, :ok}
+    end
+  end
+
+  defp decrypt_stored_value(realm, stored_value, encrypted_dek)
+       when is_binary(stored_value) and is_binary(encrypted_dek) do
+    with {:ok, dek} <- Secrets.decrypt_with_kek(realm, encrypted_dek),
+         {:ok, plaintext} <- Secrets.decrypt_with_dek(stored_value, dek) do
+      {:ok, :erlang.binary_to_term(plaintext)}
+    end
+  end
+
+  defp decrypt_stored_value(_realm, _stored_value, _encrypted_dek), do: :error
+
+  defp handle_property_send(
+         realm,
+         encoded_device_id,
+         interface_name,
+         path,
+         payload,
+         printable_value
+       ) do
+    case send_value(realm, encoded_device_id, interface_name, path, payload, printable_value) do
       {:ok, _bytes} ->
         # TODO: use the returned bytes count in stats
         {:cont, :ok}
@@ -528,26 +597,23 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.Device do
     end
   end
 
-  defp send_value(realm, device_id_string, interface_name, path, value_type, value) do
+  defp send_value(realm, device_id_string, interface_name, path, payload, printable_value) do
     topic = "#{realm}/#{device_id_string}/#{interface_name}#{path}"
-    encapsulated_value = %{v: cast_bson_value(value_type, value)}
 
-    bson_value = Cyanide.encode!(encapsulated_value)
+    Logger.debug("Going to publish #{printable_value} on #{topic}.")
 
-    Logger.debug("Going to publish #{inspect(encapsulated_value)} on #{topic}.")
-
-    case VMQPlugin.publish(topic, bson_value, 2) do
+    case VMQPlugin.publish(topic, payload, 2) do
       {:ok, %{local_matches: local, remote_matches: remote}} when local + remote == 1 ->
-        {:ok, byte_size(topic) + byte_size(bson_value)}
+        {:ok, byte_size(topic) + byte_size(payload)}
 
       {:ok, %{local_matches: local, remote_matches: remote}} when local + remote > 1 ->
         # This should not happen so we print a warning, but we consider it a successful publish
         Logger.warning(
-          "Multiple match while publishing #{inspect(encapsulated_value)} on #{topic}.",
+          "Multiple match while publishing #{printable_value} on #{topic}.",
           tag: "publish_multiple_matches"
         )
 
-        {:ok, byte_size(topic) + byte_size(bson_value)}
+        {:ok, byte_size(topic) + byte_size(payload)}
 
       {:ok, %{local_matches: local, remote_matches: remote}} when local + remote == 0 ->
         {:error, :session_not_found}

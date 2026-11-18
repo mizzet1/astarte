@@ -265,3 +265,7 @@ If no key has ever been established for the current session, Astarte cannot decr
 payload on an encrypted endpoint. This is treated as a recoverable condition: Astarte logs the issue and discards the message rather than crashing or falling back to treating the
 payload as plaintext. The same applies if a payload is received encrypted with a stale key after a
 session reset.
+
+When Astarte resends server-owned properties after an [empty cache](080-mqtt-v1-protocol.html#empty-cache),
+values on encrypted mappings are encrypted with the shared key, like any other server-owned
+publish. If no key is established, Astarte doesn't resend those properties.
