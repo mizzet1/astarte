@@ -48,6 +48,37 @@ defmodule Astarte.DataUpdaterPlant.DataUpdater.Core.KeyAgreement.HandshakeStateT
     end
   end
 
+  describe "transition/2 with {:receive_init, msg}" do
+    test "starts a new handshake from every state", context do
+      %{secret: secret, init_exchange: init_exchange, started: started} = context
+
+      expected =
+        {:handshake_started, %{key_type: init_exchange.key_type, init_exchange: init_exchange}}
+
+      for current_state <- [
+            :uninitialized,
+            started,
+            HandshakeState.restore(secret),
+            {:failed, :invalid_argument}
+          ] do
+        assert {:ok, ^expected} =
+                 HandshakeState.transition(current_state, {:receive_init, init_exchange})
+      end
+    end
+
+    test "rotates an established key once the new handshake completes", context do
+      %{secret: old_secret, init_exchange: init_exchange} = context
+      new_secret = :crypto.strong_rand_bytes(32)
+
+      assert {:ok, started} =
+               HandshakeState.restore(old_secret)
+               |> HandshakeState.transition({:receive_init, init_exchange})
+
+      assert {:ok, {:established, %{shared_secret: ^new_secret}}} =
+               HandshakeState.transition(started, {:handshake_completed, new_secret})
+    end
+  end
+
   describe "transition/2 with an invalid event" do
     test "doesn't log the shared secret held by the established state", %{secret: secret} do
       log =

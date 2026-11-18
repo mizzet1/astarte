@@ -236,8 +236,9 @@ since only the device publishes `InitExchange`.
 
 > #### Implementation note {: .note}
 >
-> In the reference Astarte implementation, an established session moves back to
-> `handshake_started` only in response to an explicit handshake re-initiation, while `SecretHash` / `HashOk` is the mechanism for reconfirming an
+> In the reference Astarte implementation, an `InitExchange` received in `established` starts a
+> key rotation. Astarte keeps using the current key until the new one is derived and stored, and
+> keeps it if the rotation fails. `SecretHash` / `HashOk` is the mechanism for reconfirming an
 > already-established key without a full re-handshake.
 
 ### Key scoping and rotation
