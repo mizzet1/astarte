@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2017-2023 SECO Mind Srl
+# Copyright 2017 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -52,12 +52,13 @@ defmodule Astarte.VMQ.Plugin.Mixfile do
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger],
+      extra_applications: [:logger, :public_key],
       mod: {Astarte.VMQ.Plugin.Application, []},
       env: [
         vmq_plugin_hooks: [
           {:auth_on_publish, Astarte.VMQ.Plugin, :auth_on_publish, 6, []},
           {:auth_on_register, Astarte.VMQ.Plugin, :auth_on_register, 5, []},
+          {:auth_on_register, Astarte.VMQ.Plugin, :auth_on_register, 6, []},
           {:auth_on_subscribe, Astarte.VMQ.Plugin, :auth_on_subscribe, 3, []},
           {:on_client_offline, Astarte.VMQ.Plugin, :on_client_offline, 1, []},
           {:on_client_gone, Astarte.VMQ.Plugin, :on_client_gone, 1, []},

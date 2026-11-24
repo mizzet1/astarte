@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2017 - 2025 SECO Mind Srl
+# Copyright 2017 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@
 #
 
 Mimic.copy(Astarte.VMQ.Plugin.Config)
+Mimic.copy(Astarte.VMQ.Plugin.Queries)
 Mimic.copy(:vernemq_dev_api)
 Mimic.copy(Mississippi.Producer.Healthcheck)
 

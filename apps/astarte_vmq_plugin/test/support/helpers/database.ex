@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2025 SECO Mind Srl
+# Copyright 2025 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,6 +33,8 @@ defmodule Astarte.VMQ.Plugin.Test.Helpers.Database do
   @create_devices_table """
   CREATE TABLE :keyspace.devices (
     device_id uuid,
+    cert_serial ascii,
+    cert_aki ascii,
     PRIMARY KEY (device_id)
   );
   """
@@ -48,6 +50,12 @@ defmodule Astarte.VMQ.Plugin.Test.Helpers.Database do
   @insert_device_into_devices """
     INSERT INTO :keyspace.devices (device_id)
       VALUES (:device_id);
+  """
+
+  @insert_device_certificate """
+    UPDATE :keyspace.devices
+      SET cert_serial = :cert_serial, cert_aki = :cert_aki
+      WHERE device_id = :device_id;
   """
 
   @insert_device_into_deletion_in_progress """
@@ -86,6 +94,19 @@ defmodule Astarte.VMQ.Plugin.Test.Helpers.Database do
     params = %{"device_id" => {"uuid", device_id}}
 
     execute!(keyspace, @insert_device_into_devices, params)
+  end
+
+  def insert_device_certificate!(realm, encoded_device_id, serial, aki) do
+    keyspace = keyspace_name!(realm)
+    {:ok, device_id} = Device.decode_device_id(encoded_device_id)
+
+    params = %{
+      "device_id" => {"uuid", device_id},
+      "cert_serial" => {"ascii", serial},
+      "cert_aki" => {"ascii", aki}
+    }
+
+    execute!(keyspace, @insert_device_certificate, params)
   end
 
   def insert_device_into_deletion_in_progress!(realm, encoded_device_id) do

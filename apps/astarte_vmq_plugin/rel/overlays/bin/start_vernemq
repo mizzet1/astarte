@@ -298,6 +298,7 @@ EOF
         echo "listener.ssl.keyfile = /opt/vernemq/etc/privkey.pem" >> ${VERNEMQ_CONF_FILE}
         echo "listener.ssl.require_certificate = on" >> ${VERNEMQ_CONF_FILE}
         echo "listener.ssl.use_identity_as_username = on" >> ${VERNEMQ_CONF_FILE}
+        echo "listener.ssl.forward_connection_opts = on" >> ${VERNEMQ_CONF_FILE}
         echo "listener.ssl.tls_version = tlsv1.2" >> ${VERNEMQ_CONF_FILE}
     fi
 

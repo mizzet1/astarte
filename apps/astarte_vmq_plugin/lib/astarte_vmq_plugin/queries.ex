@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2023 SECO Mind Srl
+# Copyright 2023 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -51,6 +51,40 @@ defmodule Astarte.VMQ.Plugin.Queries do
            execute_query(conn, realm, query, params, consistency: :quorum) do
       [%{"count" => value}] = Enum.to_list(page)
       {:ok, value > 0}
+    end
+  end
+
+  @doc """
+  Fetches serial and AKI of the last certificate issued to a device.
+  Returns either {:ok, {serial, aki}} or {:error, reason}.
+  """
+  @spec fetch_device_certificate(String.t(), Device.device_id()) ::
+          {:ok, {String.t() | nil, String.t() | nil}}
+          | {:error, :device_not_found}
+          | {:error, Xandra.Error.t()}
+          | {:error, Xandra.ConnectionError.t()}
+          | {:error, :invalid_realm_name}
+  def fetch_device_certificate(realm, decoded_device_id) do
+    Xandra.Cluster.run(:xandra, &do_fetch_device_certificate(&1, realm, decoded_device_id))
+  end
+
+  defp do_fetch_device_certificate(conn, realm, device_id) do
+    query = """
+    SELECT cert_serial, cert_aki
+    FROM devices
+    WHERE device_id = :device_id
+    """
+
+    params = %{
+      "device_id" => device_id
+    }
+
+    with {:ok, page = %Xandra.Page{}} <-
+           execute_query(conn, realm, query, params, consistency: :quorum) do
+      case Enum.to_list(page) do
+        [%{"cert_serial" => serial, "cert_aki" => aki}] -> {:ok, {serial, aki}}
+        [] -> {:error, :device_not_found}
+      end
     end
   end
 

@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 
 - [astarte_pairing] `verify_credentials` reports certificates superseded by a newer one as revoked.
+- [astarte_vmq_plugin] Devices can connect to the TLS listener only with their last issued certificate.
 
 ## [1.4.0-rc.6] - 2026-09-28
 

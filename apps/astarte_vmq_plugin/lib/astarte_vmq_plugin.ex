@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2017 - 2023 SECO Mind Srl
+# Copyright 2017 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,11 +22,14 @@ defmodule Astarte.VMQ.Plugin do
   """
 
   alias Astarte.Core.Device
+  alias Astarte.VMQ.Plugin.Certificate
   alias Astarte.VMQ.Plugin.Config
   alias Astarte.VMQ.Plugin.Connection.Synchronizer
   alias Astarte.VMQ.Plugin.Connection.Synchronizer.Supervisor, as: SynchronizerSupervisor
   alias Astarte.VMQ.Plugin.Queries
   alias Mississippi.Producer.EventsProducer
+
+  require Logger
 
   @max_rand trunc(:math.pow(2, 32) - 1)
   @vernemq_api Application.compile_env(
@@ -35,14 +38,19 @@ defmodule Astarte.VMQ.Plugin do
                  Astarte.VMQ.Plugin.VerneMQ.API
                )
 
-  def auth_on_register(_peer, _subscriber_id, :undefined, _password, _cleansession) do
+  def auth_on_register(peer, subscriber_id, username, password, cleansession) do
+    auth_on_register(peer, subscriber_id, username, password, cleansession, %{})
+  end
+
+  # Called instead of auth_on_register/5 on listeners with forward_connection_opts enabled
+  def auth_on_register(_peer, _subscriber_id, :undefined, _password, _cleansession, _opts) do
     # If it doesn't have a username we let someone else decide
     :next
   end
 
-  def auth_on_register(_peer, {mountpoint, _client_id}, username, _password, _cleansession) do
+  def auth_on_register(_peer, {mountpoint, _client_id}, username, _password, _cleansession, opts) do
     if String.contains?(username, "/") do
-      authorize_registration(mountpoint, username)
+      authorize_registration(mountpoint, username, Map.get(opts, :client_cert))
     else
       # Not a device, let someone else decide
       :next
@@ -300,7 +308,7 @@ defmodule Astarte.VMQ.Plugin do
     end
   end
 
-  defp authorize_registration(mountpoint, username) do
+  defp authorize_registration(mountpoint, username, client_cert) do
     [realm, device_id] = String.split(username, "/")
     {:ok, decoded_device_id} = Device.decode_device_id(device_id, allow_extended_id: true)
 
@@ -310,6 +318,9 @@ defmodule Astarte.VMQ.Plugin do
 
       device_deletion_in_progress?(realm, decoded_device_id) ->
         {:error, :device_deletion_in_progress}
+
+      certificate_superseded?(realm, decoded_device_id, client_cert) ->
+        {:error, :certificate_superseded}
 
       true ->
         {:ok, registration_modifiers(mountpoint, username)}
@@ -342,6 +353,29 @@ defmodule Astarte.VMQ.Plugin do
       # Allow a device to connect even if right now the DB is not available
       {:error, %Xandra.Error{}} ->
         true
+    end
+  end
+
+  # Without forward_connection_opts we don't get the certificate
+  defp certificate_superseded?(_realm, _device_id, nil), do: false
+  defp certificate_superseded?(_realm, _device_id, :undefined), do: false
+
+  defp certificate_superseded?(realm, device_id, client_cert) do
+    case Queries.fetch_device_certificate(realm, device_id) do
+      {:ok, known_certificate} ->
+        Certificate.serial_and_aki(client_cert) != known_certificate
+
+      {:error, :device_not_found} ->
+        true
+
+      # Allow a device to connect even if right now the DB is not available
+      {:error, reason} ->
+        Logger.warning("Could not check the device certificate: #{inspect(reason)}",
+          tag: "certificate_check_failed",
+          realm: realm
+        )
+
+        false
     end
   end
 

@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2017 - 2025 SECO Mind Srl
+# Copyright 2017 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -104,6 +104,74 @@ defmodule Astarte.VMQ.Plugin.Test2 do
                  :dontcare,
                  :dontcare
                )
+    end
+  end
+
+  describe "auth_on_register with connection opts" do
+    @describetag :auth_on_register
+    @describetag :integration
+    @describetag :database
+
+    setup %{realm_name: realm_name} do
+      device_id = DeviceHelper.random_device()
+      Database.insert_device_into_devices!(realm_name, device_id)
+
+      %{device_id: device_id, opts: %{client_cert: DeviceFixture.client_crt_der()}}
+    end
+
+    test "succeeds with the last issued certificate", ctx do
+      %{realm_name: realm_name, device_id: device_id, opts: opts} = ctx
+
+      Database.insert_device_certificate!(
+        realm_name,
+        device_id,
+        DeviceFixture.client_crt_serial(),
+        DeviceFixture.client_crt_aki()
+      )
+
+      assert {:ok, _modifiers} = auth_on_register("#{realm_name}/#{device_id}", opts)
+    end
+
+    test "fails with a superseded certificate", ctx do
+      %{realm_name: realm_name, device_id: device_id, opts: opts} = ctx
+
+      Database.insert_device_certificate!(
+        realm_name,
+        device_id,
+        "1234",
+        DeviceFixture.client_crt_aki()
+      )
+
+      assert {:error, :certificate_superseded} =
+               auth_on_register("#{realm_name}/#{device_id}", opts)
+    end
+
+    test "fails when no certificate is known for the device", ctx do
+      %{realm_name: realm_name, device_id: device_id, opts: opts} = ctx
+
+      assert {:error, :certificate_superseded} =
+               auth_on_register("#{realm_name}/#{device_id}", opts)
+    end
+
+    test "skips the certificate check without a client certificate", ctx do
+      %{realm_name: realm_name, device_id: device_id} = ctx
+
+      assert {:ok, _modifiers} = auth_on_register("#{realm_name}/#{device_id}", %{})
+    end
+
+    test "lets the device connect if the database is not available", ctx do
+      %{realm_name: realm_name, device_id: device_id, opts: opts} = ctx
+
+      Astarte.VMQ.Plugin.Queries
+      |> Mimic.stub(:fetch_device_certificate, fn _realm, _device_id ->
+        {:error, %Xandra.ConnectionError{action: "execute", reason: :closed}}
+      end)
+
+      assert {:ok, _modifiers} = auth_on_register("#{realm_name}/#{device_id}", opts)
+    end
+
+    defp auth_on_register(username, opts) do
+      Plugin.auth_on_register(:dontcare, {"/", :dontcare}, username, :dontcare, :dontcare, opts)
     end
   end
 
