@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2023 SECO Mind Srl
+# Copyright 2023 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@ defmodule Astarte.VMQ.Plugin.DatabaseTestHelper do
   @create_devices_table """
   CREATE TABLE #{@test_keyspace}.devices (
     device_id uuid,
+    cert_serial ascii,
+    cert_aki ascii,
     PRIMARY KEY (device_id)
   );
   """

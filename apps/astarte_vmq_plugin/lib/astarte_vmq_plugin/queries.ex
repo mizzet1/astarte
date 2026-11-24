@@ -1,7 +1,7 @@
 #
 # This file is part of Astarte.
 #
-# Copyright 2023 SECO Mind Srl
+# Copyright 2023 - 2026 SECO Mind Srl
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,28 +17,29 @@
 #
 
 defmodule Astarte.VMQ.Plugin.Queries do
-  @moduledoc "Cassandra/Scylla queries for device existence and deletion status."
+  @moduledoc "Cassandra/Scylla queries for device certificates and deletion status."
   alias Astarte.Core.CQLUtils
   alias Astarte.Core.Device
   alias Astarte.Core.Realm
   alias Astarte.VMQ.Plugin.Config
 
   @doc """
-  Checks whether a device row exists in Astarte database (i.e. it has at least been registered).
-  Returns either {:ok, exists?} or {:error, reason}.
+  Fetches serial and AKI of the last certificate issued to a device.
+  Returns either {:ok, {serial, aki}} or {:error, reason}.
   """
-  @spec check_if_device_exists(String.t(), Device.device_id()) ::
-          {:ok, boolean()}
+  @spec fetch_device_certificate(String.t(), Device.device_id()) ::
+          {:ok, {String.t() | nil, String.t() | nil}}
+          | {:error, :device_not_found}
           | {:error, Xandra.Error.t()}
           | {:error, Xandra.ConnectionError.t()}
           | {:error, :invalid_realm_name}
-  def check_if_device_exists(realm, decoded_device_id) do
-    Xandra.Cluster.run(:xandra, &do_check_if_device_exists(&1, realm, decoded_device_id))
+  def fetch_device_certificate(realm, decoded_device_id) do
+    Xandra.Cluster.run(:xandra, &do_fetch_device_certificate(&1, realm, decoded_device_id))
   end
 
-  defp do_check_if_device_exists(conn, realm, device_id) do
+  defp do_fetch_device_certificate(conn, realm, device_id) do
     query = """
-    SELECT count(*)
+    SELECT cert_serial, cert_aki
     FROM devices
     WHERE device_id = :device_id
     """
@@ -49,8 +50,10 @@ defmodule Astarte.VMQ.Plugin.Queries do
 
     with {:ok, page = %Xandra.Page{}} <-
            execute_query(conn, realm, query, params, consistency: :quorum) do
-      [%{"count" => value}] = Enum.to_list(page)
-      {:ok, value > 0}
+      case Enum.to_list(page) do
+        [%{"cert_serial" => serial, "cert_aki" => aki}] -> {:ok, {serial, aki}}
+        [] -> {:error, :device_not_found}
+      end
     end
   end
 
