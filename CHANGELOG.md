@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - [astarte_vmq_plugin] The message producer workers now run on the local node only, guaranteeing per-device message
   ordering with lower latency.
 
+### Fixed
+
+- [astarte_pairing] `verify_credentials` reports certificates superseded by a newer one as revoked.
+
 ## [1.4.0-rc.6] - 2026-09-28
 
 Includes changes from v1.3.4

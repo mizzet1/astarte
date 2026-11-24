@@ -12,7 +12,6 @@ async fn superseded_broker() {
 
 // TODO: expect success once pairing checks whether a certificate was revoked
 #[tokio::test]
-#[should_panic(expected = "pairing reported the superseded certificate as valid")]
 async fn superseded_pairing() {
     Variant::SupersededPairing
         .run(Config::from_env().unwrap())
